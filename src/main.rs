@@ -47,6 +47,16 @@ fn run(source: String) {
     }
 }
 
+fn error(line_num: usize, message: String) {
+    report(line_num, String::new(), message);
+}
+
+fn report(line_num: usize, location: String, message: String) {
+    println!(
+        "[line {}] Error{}: {}", line_num, location, message
+    )
+}
+
 struct Scanner {
    source: String, 
 }
