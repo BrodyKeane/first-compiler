@@ -5,11 +5,13 @@ use std::{
     fs,
 };
 
+
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
+    let lax = Lax::new();
     match args.len() {
-        0 => run_prompt(),
-        1 => run_file(&args[0]),
+        0 => lax.run_prompt(),
+        1 => lax.run_file(&args[0]),
         num_args => {
             eprintln!("Expected 1 argument but {} were given", num_args);
             process::exit(64);
@@ -17,44 +19,56 @@ fn main() {
     };
 }
 
-fn run_file(path: &String) {
-    let source = fs::read_to_string(path).unwrap();
-    run(source);
+pub struct Lax {
+    pub had_error: bool,
 }
 
-fn run_prompt() {
-    loop {
-        print!("> ");
-        io::stdout().flush().unwrap();
+impl Lax {
+    pub fn new() -> Self {
+        Lax { had_error: false }
+    }
 
-        let mut line = String::new();
-        if let Err(error) = io::stdin().read_line(&mut line) {
-            eprintln!("Error reading line: {:?}", error);
+    pub fn run_file(&self, path: &String) {
+        let source = fs::read_to_string(path).unwrap();
+        self.run(source);
+        if self.had_error {
+            process::exit(65)
+        };
+    }
+
+    pub fn run_prompt(&self) {
+        loop {
+            print!("> ");
+            io::stdout().flush().unwrap();
+
+            let mut line = String::new();
+            if let Err(error) = io::stdin().read_line(&mut line) {
+                eprintln!("Error reading line: {:?}", error);
+            }
+            line = line.trim().to_string();
+            
+            self.run(line);
         }
-
-        line = line.trim().to_string();
+    }
+    fn run(&self, source: String) {
+        let scanner = Scanner{ source };
+        let tokens = scanner.scan_tokens();
         
-        run(line);
+        for token in tokens {
+            println!("{:?}", token);
+        }
     }
-}
 
-fn run(source: String) {
-    let scanner = Scanner{ source };
-    let tokens = scanner.scan_tokens();
-    
-    for token in tokens {
-        println!("{:?}", token);
+
+    fn error(line_num: usize, message: String) {
+        Lax::report(line_num, String::new(), message);
     }
-}
 
-fn error(line_num: usize, message: String) {
-    report(line_num, String::new(), message);
-}
-
-fn report(line_num: usize, location: String, message: String) {
-    println!(
-        "[line {}] Error{}: {}", line_num, location, message
-    )
+    fn report(line_num: usize, location: String, message: String) {
+        println!(
+            "[line {}] Error{}: {}", line_num, location, message
+        )
+    }
 }
 
 struct Scanner {
