@@ -1,4 +1,4 @@
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum TokenType{
     //One char tokens
     OpenParen, CloseParen,

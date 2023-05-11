@@ -1,7 +1,32 @@
+use std::collections::HashMap;
+
 use crate::{
     token::{Token, TokenType, Literal},
     Lax,
 };
+
+lazy_static! {
+    static ref KEYWORDS: HashMap<&'static str, TokenType> = {
+        let mut map = HashMap::new();
+        map.insert("and", TokenType::And);
+        map.insert("class", TokenType::Class);
+        map.insert("else", TokenType::Else);
+        map.insert("false", TokenType::False);
+        map.insert("for", TokenType::For);
+        map.insert("fn", TokenType::Fn);
+        map.insert("if", TokenType::If);
+        map.insert("nil", TokenType::Nil);
+        map.insert("or", TokenType::Or);
+        map.insert("print", TokenType::Print);
+        map.insert("return", TokenType::Return);
+        map.insert("super", TokenType::Super);
+        map.insert("this", TokenType::This);
+        map.insert("true", TokenType::True);
+        map.insert("let", TokenType::Let);
+        map.insert("while", TokenType::While);
+        map
+    };
+}
 
 pub struct Scanner<'a> {
     source: String,
@@ -89,6 +114,7 @@ impl<'a> Scanner<'a> {
             "\"" => self.tokenize_string(),
 
             c if self.is_digit(c) => self.tokenize_number(),
+            c if self.is_alpha(c) => self.tokenize_identifier(),
  
             _ => self.lax.error(
                     self.line,
@@ -122,10 +148,17 @@ impl<'a> Scanner<'a> {
     }
 
     fn is_digit(&self, c: &str) -> bool {
-        match c.chars().next() {
-            Some(ch) => ch.is_digit(10),
-            _ => false,
-        }
+        (c >= "0") && (c <= "9")
+    }
+
+    fn is_alpha(&self, c: &str) -> bool {
+        return  (c >= "a" && c <= "z") ||
+                (c >= "A" && c <= "Z") ||
+                c == "_"
+    }
+
+    fn is_alpha_numeric(&self, c: &str) -> bool {
+        self.is_alpha(c) || self.is_digit(c)
     }
 
     fn tokenize_string(&mut self) {
@@ -162,7 +195,7 @@ impl<'a> Scanner<'a> {
             self.advance();
         };
         let num = 
-            self.source[self.start..=self.current]
+            self.source[self.start..self.current]
             .to_string()
             .parse::<f64>();
         match num {
@@ -175,11 +208,18 @@ impl<'a> Scanner<'a> {
                 "Failed to parse number.".to_string()
             )
         }
-        self.add_token(
-            TokenType::Number,
+    }
 
-
-        )
+    fn tokenize_identifier(&mut self) {
+        while self.is_alpha_numeric(self.peek()) {
+            self.advance();
+        };
+        let text = &self.source[self.start..self.current];
+        let token_type = match KEYWORDS.get(text) {
+            Some(t) => t.clone(),
+            None => TokenType::Identifier,
+        };
+        self.add_token(token_type);
     }
 
     fn add_token(&mut self, token_type: TokenType) {
@@ -203,7 +243,6 @@ impl<'a> Scanner<'a> {
         self.tokens.push(token);
     }
 }
-
 
 
 
