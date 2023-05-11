@@ -1,3 +1,5 @@
+#![allow(unused_parens)]
+
 use std::{
     io::{self, Write},
     env,
@@ -5,10 +7,10 @@ use std::{
     fs,
 };
 
+use scanner::Scanner;
+
 mod token;
 mod scanner;
-
-use scanner::Scanner;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();

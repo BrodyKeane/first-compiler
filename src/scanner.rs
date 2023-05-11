@@ -45,7 +45,8 @@ impl<'a> Scanner<'a> {
     }
 
     fn scan_token(&mut self) {
-        match self.advance() {
+        self.advance();
+        match self.curr() {
             "(" => self.add_token(TokenType::OpenParen),
             ")" => self.add_token(TokenType::CloseParen),
             "{" => self.add_token(TokenType::OpenBrace),
@@ -57,44 +58,91 @@ impl<'a> Scanner<'a> {
             ";" => self.add_token(TokenType::Semicolon),
             "*" => self.add_token(TokenType::Star),
             
-            "!" => self.add_token(match self.next_char() {
+            "!" => self.add_token(match self.peek() {
                 "=" => TokenType::BangEqual,
                 _ => TokenType::Bang,
             }),
                 
-            "=" => self.add_token(match self.next_char() {
+            "=" => self.add_token(match self.peek() {
                 "=" => TokenType::EqualEqual,
                 _ => TokenType::Equal,
             }),           
             
-            ">" => self.add_token(match self.next_char() {
+            ">" => self.add_token(match self.peek() {
                 "=" => TokenType::GreaterEqual,
                 _ => TokenType::Greater,
             }),
 
-            "<" => self.add_token(match self.next_char() {
+            "<" => self.add_token(match self.peek() {
                 "=" => TokenType::LessEqual,
                 _ => TokenType::Less,
             }),
 
+            "/" => match self.peek() {
+                "/" => self.skip_comment(),
+                _ => self.add_token(TokenType::Slash),
+            },
+
+            (" " | "\r" | "\t") => {}
+            "\n" => self.line += 1,
+            "\"" => self.tokenize_string(),
+
+            c if self.is_digit(c) => self.tokenize_number(),
+ 
             _ => self.lax.error(
                     self.line,
-                    "Unexpected character.".to_string(),
-                )
+                    "Unexpected character.".to_string()
+            ),
         }
     }
 
-    fn advance(&mut self) -> &str {
-        let next = self.source.get(self.current..=self.current).unwrap();
+    fn advance(&mut self) {
         self.current += 1;
-        next
     }
 
-    fn next_char(&self) -> &str {
-        if self.is_at_end() {return ""}
+    fn curr(&self) -> &str {
+        &self.source[self.current-1..=self.current-1]
+    }
+
+    fn peek(&self) -> &str {
+        if self.is_at_end() {return "\0"}
         &self.source[self.current..=self.current]
     }
+    
+    fn skip_comment(&mut self) {
+        while (self.peek() != "\n") && (!self.is_at_end()) {
+            self.advance();
+        }
+    }
 
+    fn is_digit(&self, c: &str) -> bool {
+        match c.chars().next() {
+            Some(ch) => ch.is_digit(10),
+            _ => false,
+        }
+    }
+
+    fn tokenize_string(&mut self) {
+        while (self.peek() != "\"") && (!self.is_at_end()) {
+            if self.peek() == "\n" {self.line += 1};
+            self.advance();
+        }
+        if self.is_at_end() {
+            self.lax.error(
+                self.line,
+                "Unterminated string.".to_string()
+            );
+            return
+        }
+        self.advance();
+        let value = 
+            self.source[self.start+1..self.current-1].to_string();
+        self.add_literal_token(TokenType::String, value);
+    }
+
+    fn tokenize_number(&mut self) {
+
+    }
 
     fn add_token(&mut self, token_type: TokenType) {
         self.push_token(token_type, None)
@@ -116,7 +164,6 @@ impl<'a> Scanner<'a> {
         );
         self.tokens.push(token);
     }
-
 }
 
 
