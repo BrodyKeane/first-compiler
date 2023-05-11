@@ -8,7 +8,6 @@ use std::{
 mod token;
 mod scanner;
 
-use token::{TokenType, Token};
 use scanner::Scanner;
 
 fn main() {
@@ -56,13 +55,13 @@ impl Lax {
             self.had_error = false;
         }
     }
+
     fn run(&mut self, source: String) {
-        let mut scanner = Scanner::new(source);
-        let tokens = scanner.scan_tokens();
+        let mut scanner = Scanner::new(self, source);
+        scanner.scan_tokens();
     }
 
-
-    fn error(&mut self, line_num: usize, message: String) {
+    pub fn error(&mut self, line_num: usize, message: String) {
         self.report(line_num, String::new(), message);
     }
 

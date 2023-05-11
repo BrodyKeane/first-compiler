@@ -1,21 +1,26 @@
-use crate::token::{Token, TokenType};
+use crate::{
+    token::{Token, TokenType},
+    Lax,
+};
 
-pub struct Scanner {
+pub struct Scanner<'a> {
     source: String,
     tokens: Vec<Token>,
     start: usize,
     current: usize,
     line: usize,
+    lax: &'a mut Lax,
 }
 
-impl Scanner {
-    pub fn new(source: String) -> Scanner {
+impl<'a> Scanner<'a> {
+    pub fn new(lax: &'a mut Lax, source: String,) -> Scanner {
         Scanner {
             source,
             tokens: vec!(),
             start: 0,
             current: 0,
             line: 1,
+            lax,
         }
     }
 
@@ -35,23 +40,48 @@ impl Scanner {
         &self.tokens
     }
 
-    fn scan_token(&self) {
-        match self.advance() {
-            "(" => add_token(TokenType::OpenParen),
-            ")" => add_token(TokenType::CloseParen),
-            "{" => add_token(TokenType::OpenBrace),
-            "}" => add_token(TokenType::CloseBrace),
-            "," => add_token(TokenType::Comma),
-            "." => add_token(TokenType::Dot),
-            "-" => add_token(TokenType::Minus),
-            "+" => add_token(TokenType::Plus),
-            ";" => add_token(TokenType::Semicolon),
-            "*" => add_token(TokenType::Star),
-        }
-    }
-
     fn is_at_end(&self) -> bool {
         self.current >= self.source.len() 
+    }
+
+    fn scan_token(&mut self) {
+        match self.advance() {
+            "(" => self.add_token(TokenType::OpenParen),
+            ")" => self.add_token(TokenType::CloseParen),
+            "{" => self.add_token(TokenType::OpenBrace),
+            "}" => self.add_token(TokenType::CloseBrace),
+            "," => self.add_token(TokenType::Comma),
+            "." => self.add_token(TokenType::Dot),
+            "-" => self.add_token(TokenType::Minus),
+            "+" => self.add_token(TokenType::Plus),
+            ";" => self.add_token(TokenType::Semicolon),
+            "*" => self.add_token(TokenType::Star),
+            
+            "!" => self.add_token(match self.next_char() {
+                "=" => TokenType::BangEqual,
+                _ => TokenType::Bang,
+            }),
+                
+            "=" => self.add_token(match self.next_char() {
+                "=" => TokenType::EqualEqual,
+                _ => TokenType::Equal,
+            }),           
+            
+            ">" => self.add_token(match self.next_char() {
+                "=" => TokenType::GreaterEqual,
+                _ => TokenType::Greater,
+            }),
+
+            "<" => self.add_token(match self.next_char() {
+                "=" => TokenType::LessEqual,
+                _ => TokenType::Less,
+            }),
+
+            _ => self.lax.error(
+                    self.line,
+                    "Unexpected character.".to_string(),
+                )
+        }
     }
 
     fn advance(&mut self) -> &str {
@@ -60,7 +90,23 @@ impl Scanner {
         next
     }
 
-    fn add_token(&self, token_type: TokenType, literal: Option<String>) {
+    fn next_char(&self) -> &str {
+        if self.is_at_end() {return ""}
+        &self.source[self.current..=self.current]
+    }
+
+
+    fn add_token(&mut self, token_type: TokenType) {
+        self.push_token(token_type, None)
+    }
+
+    fn add_literal_token(
+        &mut self, token_type: TokenType, literal: String) {
+       self.push_token(token_type, Some(literal)) 
+    }
+
+    fn push_token(
+        &mut self, token_type: TokenType, literal: Option<String>) {
         let text = self.source[self.start..self.current].to_string();
         let token = Token::new(
             token_type,
@@ -70,6 +116,7 @@ impl Scanner {
         );
         self.tokens.push(token);
     }
+
 }
 
 
