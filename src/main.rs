@@ -5,6 +5,11 @@ use std::{
     fs,
 };
 
+mod token;
+mod scanner;
+
+use token::{TokenType, Token};
+use scanner::Scanner;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -52,12 +57,8 @@ impl Lax {
         }
     }
     fn run(&mut self, source: String) {
-        let scanner = Scanner{ source };
+        let mut scanner = Scanner::new(source);
         let tokens = scanner.scan_tokens();
-        
-        for token in tokens {
-            println!("{:?}", token);
-        }
     }
 
 
@@ -71,20 +72,6 @@ impl Lax {
         );
        self.had_error = true; 
     }
-}
-
-struct Scanner {
-   source: String, 
-}
-
-impl Scanner {
-    fn scan_tokens(&self) -> Vec<Token> {
-        vec![Token{ s: "a".to_string() }]
-    }
-}
-#[derive(Debug)]
-struct Token {
-    s: String,
 }
 
 
