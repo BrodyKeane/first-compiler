@@ -1,5 +1,5 @@
 use crate::{
-    token::{Token, TokenType},
+    token::{Token, TokenType, Literal},
     Lax,
 };
 
@@ -11,6 +11,7 @@ pub struct Scanner<'a> {
     line: usize,
     lax: &'a mut Lax,
 }
+
 
 impl<'a> Scanner<'a> {
     pub fn new(lax: &'a mut Lax, source: String,) -> Scanner {
@@ -33,7 +34,7 @@ impl<'a> Scanner<'a> {
         let end_token = Token::new(
             TokenType::Eof,
             String::new(),
-            None,
+            Literal::NotLit,
             self.line
         );
         self.tokens.push(end_token);
@@ -108,6 +109,11 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {return "\0"}
         &self.source[self.current..=self.current]
     }
+
+    fn peek_next(&self) -> &str {
+        if self.current+1 >= self.source.len() {return "\0"};
+        &self.source[self.current+1..=self.current+1]
+    }
     
     fn skip_comment(&mut self) {
         while (self.peek() != "\n") && (!self.is_at_end()) {
@@ -135,26 +141,58 @@ impl<'a> Scanner<'a> {
             return
         }
         self.advance();
+
         let value = 
             self.source[self.start+1..self.current-1].to_string();
-        self.add_literal_token(TokenType::String, value);
+
+        self.add_literal_token(
+            TokenType::String,
+            Literal::StringLit(value)
+        );
     }
 
     fn tokenize_number(&mut self) {
+        while self.is_digit(self.peek()) {
+            self.advance()
+        };
+        if (self.peek() == ".") && (self.is_digit(self.peek_next())) {
+            self.advance()
+        };
+        while self.is_digit(self.peek()) {
+            self.advance();
+        };
+        let num = 
+            self.source[self.start..=self.current]
+            .to_string()
+            .parse::<f64>();
+        match num {
+            Ok(n) => self.add_literal_token(
+                TokenType::Number,
+                Literal::NumLit(n)
+            ),
+            Err(_) => self.lax.error(
+                self.line,
+                "Failed to parse number.".to_string()
+            )
+        }
+        self.add_token(
+            TokenType::Number,
 
+
+        )
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, None)
+        self.push_token(token_type, Literal::NotLit)
     }
 
     fn add_literal_token(
-        &mut self, token_type: TokenType, literal: String) {
-       self.push_token(token_type, Some(literal)) 
+        &mut self, token_type: TokenType, literal: Literal) {
+       self.push_token(token_type, literal) 
     }
 
     fn push_token(
-        &mut self, token_type: TokenType, literal: Option<String>) {
+        &mut self, token_type: TokenType, literal: Literal) {
         let text = self.source[self.start..self.current].to_string();
         let token = Token::new(
             token_type,
@@ -165,12 +203,6 @@ impl<'a> Scanner<'a> {
         self.tokens.push(token);
     }
 }
-
-
-
-
-
-
 
 
 
