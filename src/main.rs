@@ -9,8 +9,8 @@ use std::{
 
 use scanner::Scanner;
 
-mod token;
 mod scanner;
+mod token;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
