@@ -1,32 +1,7 @@
-use std::collections::HashMap;
-
 use crate::{
     token::{Token, TokenType, Literal},
     Lax,
 };
-
-lazy_static! {
-    static ref KEYWORDS: HashMap<&'static str, TokenType> = {
-        let mut map = HashMap::new();
-        map.insert("and", TokenType::And);
-        map.insert("class", TokenType::Class);
-        map.insert("else", TokenType::Else);
-        map.insert("false", TokenType::False);
-        map.insert("for", TokenType::For);
-        map.insert("fn", TokenType::Fn);
-        map.insert("if", TokenType::If);
-        map.insert("nil", TokenType::Nil);
-        map.insert("or", TokenType::Or);
-        map.insert("print", TokenType::Print);
-        map.insert("return", TokenType::Return);
-        map.insert("super", TokenType::Super);
-        map.insert("this", TokenType::This);
-        map.insert("true", TokenType::True);
-        map.insert("let", TokenType::Let);
-        map.insert("while", TokenType::While);
-        map
-    };
-}
 
 pub struct Scanner<'a> {
     source: String,
@@ -36,7 +11,6 @@ pub struct Scanner<'a> {
     line: usize,
     lax: &'a mut Lax,
 }
-
 
 impl<'a> Scanner<'a> {
     pub fn new(lax: &'a mut Lax, source: String,) -> Scanner {
@@ -66,10 +40,6 @@ impl<'a> Scanner<'a> {
         &self.tokens
     }
 
-    fn is_at_end(&self) -> bool {
-        self.current >= self.source.len() 
-    }
-
     fn scan_token(&mut self) {
         self.advance();
         match self.curr() {
@@ -83,84 +53,41 @@ impl<'a> Scanner<'a> {
             "+" => self.add_token(TokenType::Plus),
             ";" => self.add_token(TokenType::Semicolon),
             "*" => self.add_token(TokenType::Star),
-            
             "!" => self.add_token(match self.peek() {
                 "=" => TokenType::BangEqual,
                 _ => TokenType::Bang,
             }),
-                
             "=" => self.add_token(match self.peek() {
                 "=" => TokenType::EqualEqual,
                 _ => TokenType::Equal,
             }),           
-            
             ">" => self.add_token(match self.peek() {
                 "=" => TokenType::GreaterEqual,
                 _ => TokenType::Greater,
             }),
-
             "<" => self.add_token(match self.peek() {
                 "=" => TokenType::LessEqual,
                 _ => TokenType::Less,
             }),
-
             "/" => match self.peek() {
                 "/" => self.skip_comment(),
                 _ => self.add_token(TokenType::Slash),
             },
 
-            (" " | "\r" | "\t") => {}
+            (" " | "\r" | "\t") => {} //Whitespace chars are skipped
             "\n" => self.line += 1,
             "\"" => self.tokenize_string(),
 
             c if self.is_digit(c) => self.tokenize_number(),
             c if self.is_alpha(c) => self.tokenize_identifier(),
- 
+            
             _ => self.lax.error(
                     self.line,
                     "Unexpected character.".to_string()
             ),
         }
     }
-
-    fn advance(&mut self) {
-        self.current += 1;
-    }
-
-    fn curr(&self) -> &str {
-        &self.source[self.current-1..=self.current-1]
-    }
-
-    fn peek(&self) -> &str {
-        if self.is_at_end() {return "\0"}
-        &self.source[self.current..=self.current]
-    }
-
-    fn peek_next(&self) -> &str {
-        if self.current+1 >= self.source.len() {return "\0"};
-        &self.source[self.current+1..=self.current+1]
-    }
     
-    fn skip_comment(&mut self) {
-        while (self.peek() != "\n") && (!self.is_at_end()) {
-            self.advance();
-        }
-    }
-
-    fn is_digit(&self, c: &str) -> bool {
-        (c >= "0") && (c <= "9")
-    }
-
-    fn is_alpha(&self, c: &str) -> bool {
-        return  (c >= "a" && c <= "z") ||
-                (c >= "A" && c <= "Z") ||
-                c == "_"
-    }
-
-    fn is_alpha_numeric(&self, c: &str) -> bool {
-        self.is_alpha(c) || self.is_digit(c)
-    }
-
     fn tokenize_string(&mut self) {
         while (self.peek() != "\"") && (!self.is_at_end()) {
             if self.peek() == "\n" {self.line += 1};
@@ -215,11 +142,33 @@ impl<'a> Scanner<'a> {
             self.advance();
         };
         let text = &self.source[self.start..self.current];
-        let token_type = match KEYWORDS.get(text) {
+        let token_type = match self.match_keyword(text) {
             Some(t) => t.clone(),
             None => TokenType::Identifier,
         };
         self.add_token(token_type);
+    }
+
+    fn match_keyword(&self, keyword: &str) -> Option<TokenType> {
+        Some(match keyword {
+            "if" => TokenType::If,
+            "else" => TokenType::Else,
+            "and" => TokenType::And,
+            "or" => TokenType::Or,
+            "true" => TokenType::True,
+            "false" => TokenType::False,
+            "for" => TokenType::For,
+            "while" => TokenType::While,
+            "let" => TokenType::Let,
+            "fn" => TokenType::Fn,
+            "class" => TokenType::Class,
+            "return" => TokenType::Return,
+            "Nil" =>TokenType::Nil,
+            "print" => TokenType::Print,
+            "super" => TokenType::Super,
+            "this" => TokenType::This,
+            _ => return None,   
+        })
     }
 
     fn add_token(&mut self, token_type: TokenType) {
@@ -242,41 +191,46 @@ impl<'a> Scanner<'a> {
         );
         self.tokens.push(token);
     }
+
+    fn is_at_end(&self) -> bool {
+        self.current >= self.source.len() 
+    }
+
+    fn advance(&mut self) {
+        self.current += 1;
+    }
+
+    fn curr(&self) -> &str {
+        &self.source[self.current-1..=self.current-1]
+    }
+
+    fn peek(&self) -> &str {
+        if self.is_at_end() {return "\0"}
+        &self.source[self.current..=self.current]
+    }
+
+    fn peek_next(&self) -> &str {
+        if self.current+1 >= self.source.len() {return "\0"};
+        &self.source[self.current+1..=self.current+1]
+    }
+    
+    fn skip_comment(&mut self) {
+        while (self.peek() != "\n") && (!self.is_at_end()) {
+            self.advance();
+        }
+    }
+
+    fn is_digit(&self, c: &str) -> bool {
+        (c >= "0") && (c <= "9")
+    }
+
+    fn is_alpha(&self, c: &str) -> bool {
+        return  (c >= "a" && c <= "z") ||
+                (c >= "A" && c <= "Z") ||
+                c == "_"
+    }
+
+    fn is_alpha_numeric(&self, c: &str) -> bool {
+        self.is_alpha(c) || self.is_digit(c)
+    }
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-

@@ -1,8 +1,5 @@
 #![allow(unused_parens)]
 
-#[macro_use]
-extern crate lazy_static;
-
 use std::{
     io::{self, Write},
     env,
