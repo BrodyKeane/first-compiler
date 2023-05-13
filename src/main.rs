@@ -11,6 +11,7 @@ use scanner::Scanner;
 
 mod scanner;
 mod token;
+mod ast;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();

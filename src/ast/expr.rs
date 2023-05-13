@@ -1,11 +1,13 @@
-enum Expr {
+use crate::token::Token;
+
+pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
     Literal(Literal),
     Unary(Unary),
 }
 
-trait Visitor<R> {
+pub trait Visitor<R> {
     fn visit_binary_expr(&mut self, expr: &Binary) -> R;
     fn visit_grouping_expr(&mut self, expr: &Grouping) -> R;
     fn visit_literal_expr(&mut self, expr: &Literal) -> R;
@@ -31,10 +33,10 @@ impl Expr {
     }
 }
 
-struct Binary {
-  left: Box<Expr>,
-  operator: Token,
-  right: Box<Expr>,
+pub struct Binary {
+  pub left: Box<Expr>,
+  pub operator: Token,
+  pub right: Box<Expr>,
 }
 
 impl Binary {
@@ -47,8 +49,8 @@ impl Binary {
     }
 }
 
-struct Grouping {
-    expr: Box<Expr>, 
+pub struct Grouping {
+    pub expr: Box<Expr>, 
 }
 
 impl Grouping {
@@ -59,19 +61,19 @@ impl Grouping {
     }
 }
 
-struct Literal {
-    value: String,
+pub struct Literal {
+    pub value: Option<String>,
 }
 
 impl Literal {
-    fn new(value: String) -> Literal {
+    fn new(value: Option<String>) -> Literal {
         Literal { value }
     }
 }
 
-struct Unary {
-    operator: Token,
-    right: Box<Expr>,
+pub struct Unary {
+    pub operator: Token,
+    pub right: Box<Expr>,
 }
 
 impl Unary {

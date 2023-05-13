@@ -36,6 +36,7 @@ impl<'a> Scanner<'a> {
             Literal::NotLit,
             self.line
         );
+
         self.tokens.push(end_token);
         &self.tokens
     }
