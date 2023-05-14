@@ -1,3 +1,5 @@
+use core::fmt;
+
 use crate::token::Token;
 
 pub trait Data {
@@ -41,7 +43,7 @@ impl Data for Expr {
 }
 
 impl Expr {
-    pub fn binary(left: Expr, operator: Token, right: Expr) -> Self {
+    pub fn new_binary(left: Expr, operator: Token, right: Expr) -> Self {
         Expr::Binary(Binary {
             left: Box::new(left),
             operator,
@@ -49,17 +51,17 @@ impl Expr {
         })
     }
     
-    pub fn grouping(expr: Expr) -> Self {
+    pub fn new_grouping(expr: Expr) -> Self {
         Expr::Grouping(Grouping {
             expr: Box::new(expr),
         })
     }
 
-    pub fn literal(value: Option<String>) -> Self {
+    pub fn new_literal(value: Box<dyn fmt::Display>) -> Self {
         Expr::Literal(Literal { value })
     }
 
-    pub fn unary(operator: Token, right: Expr) -> Self {
+    pub fn new_unary(operator: Token, right: Expr) -> Self {
         Expr::Unary(Unary {
             operator,
             right: Box::new(right),
@@ -78,7 +80,7 @@ pub struct Grouping {
 }
 
 pub struct Literal {
-    pub value: Option<String>,
+    pub value: Box<dyn fmt::Display>,
 }
 
 pub struct Unary {

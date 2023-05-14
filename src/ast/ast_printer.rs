@@ -1,4 +1,8 @@
-use crate::ast::expr::{self, Expr, Data};
+use crate::ast::expr::{
+    self,
+    Expr,
+    Data
+};
 
 pub struct AstPrinter;
 
@@ -38,10 +42,7 @@ impl expr::Visitor for AstPrinter {
     }
 
     fn visit_literal_expr(&mut self, expr: &expr::Literal) -> String {
-        match &expr.value {
-            Some(val) => val.to_string(),
-            None => "nil".to_string(),
-        }
+        expr.value.to_string()
     }
 
     fn visit_unary_expr(&mut self, expr: &expr::Unary) -> String {

@@ -33,7 +33,7 @@ impl<'a> Scanner<'a> {
         let end_token = Token::new(
             TokenType::Eof,
             String::new(),
-            Literal::NotLit,
+            Literal::None,
             self.line
         );
 
@@ -173,7 +173,7 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, Literal::NotLit)
+        self.push_token(token_type, Literal::None)
     }
 
     fn add_literal_token(

@@ -27,7 +27,7 @@ pub enum TokenType{
 pub enum Literal {
     StringLit(String),
     NumLit(f64),
-    NotLit
+    None
 }
 
 #[derive(Debug)]
