@@ -1,4 +1,4 @@
-use crate::ast::expr::{self, Expr};
+use crate::ast::expr::{self, Expr, Data};
 
 pub struct AstPrinter;
 
@@ -23,7 +23,9 @@ impl AstPrinter {
     }
 }
 
-impl expr::Visitor<String> for AstPrinter {
+impl expr::Visitor for AstPrinter {
+    type Output = String;
+
     fn visit_binary_expr(&mut self, expr: &expr::Binary) -> String {
         self.parenthesize(
             &expr.operator.lexeme,
