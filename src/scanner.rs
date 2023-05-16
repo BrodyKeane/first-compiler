@@ -1,5 +1,5 @@
 use crate::{
-    token::{Token, TokenType, Literal},
+    token::{Token, TokenType, LitType},
     Lax,
 };
 
@@ -33,7 +33,7 @@ impl<'a> Scanner<'a> {
         let end_token = Token::new(
             TokenType::Eof,
             String::new(),
-            Literal::None,
+            LitType::None,
             self.line
         );
 
@@ -84,7 +84,7 @@ impl<'a> Scanner<'a> {
             
             _ => self.lax.error(
                     self.line,
-                    "Unexpected character.".to_string()
+                    "Unexpected character."
             ),
         }
     }
@@ -97,7 +97,7 @@ impl<'a> Scanner<'a> {
         if self.is_at_end() {
             self.lax.error(
                 self.line,
-                "Unterminated string.".to_string()
+                "Unterminated string."
             );
             return
         }
@@ -108,7 +108,7 @@ impl<'a> Scanner<'a> {
 
         self.add_literal_token(
             TokenType::String,
-            Literal::StringLit(value)
+            LitType::String(value)
         );
     }
 
@@ -129,11 +129,11 @@ impl<'a> Scanner<'a> {
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,
-                Literal::NumLit(n)
+                LitType::Num(n)
             ),
             Err(_) => self.lax.error(
                 self.line,
-                "Failed to parse number.".to_string()
+                "Failed to parse number."
             )
         }
     }
@@ -173,16 +173,16 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, Literal::None)
+        self.push_token(token_type, LitType::None)
     }
 
     fn add_literal_token(
-        &mut self, token_type: TokenType, literal: Literal) {
+        &mut self, token_type: TokenType, literal: LitType) {
        self.push_token(token_type, literal) 
     }
 
     fn push_token(
-        &mut self, token_type: TokenType, literal: Literal) {
+        &mut self, token_type: TokenType, literal: LitType) {
         let text = self.source[self.start..self.current].to_string();
         let token = Token::new(
             token_type,

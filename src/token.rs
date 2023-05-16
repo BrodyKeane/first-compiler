@@ -1,3 +1,5 @@
+use std::fmt;
+
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType{
     //One char tokens
@@ -23,24 +25,37 @@ pub enum TokenType{
     Eof,
 }
 
-#[derive(Debug)]
-pub enum Literal {
-    StringLit(String),
-    NumLit(f64),
+#[derive(Debug, Clone)]
+pub enum LitType {
+    String(String),
+    Num(f64),
+    Bool(bool),
     None
 }
 
-#[derive(Debug)]
+impl fmt::Display for LitType {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            LitType::String(value) => write!(f, "{}", value),
+            LitType::Num(value) => write!(f, "{}", value),
+            LitType::Bool(value) => write!(f, "{}", value),
+            LitType::None => write!(f, "None"),
+        }
+    }
+}
+
+#[derive(Debug, Clone)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub literal: Literal,
+    pub literal: LitType,
     pub line: usize,
 }
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String,
-        literal: Literal, line: usize) -> Token {
+        literal: LitType, line: usize) -> Token {
+
         Token {
             token_type,
             lexeme,

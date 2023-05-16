@@ -1,6 +1,4 @@
-use core::fmt;
-
-use crate::token::Token;
+use crate::token::{Token, LitType};
 
 pub trait Data {
     fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output;
@@ -57,7 +55,7 @@ impl Expr {
         })
     }
 
-    pub fn new_literal(value: Box<dyn fmt::Display>) -> Self {
+    pub fn new_literal(value: LitType) -> Self {
         Expr::Literal(Literal { value })
     }
 
@@ -80,7 +78,7 @@ pub struct Grouping {
 }
 
 pub struct Literal {
-    pub value: Box<dyn fmt::Display>,
+    pub value: LitType,
 }
 
 pub struct Unary {

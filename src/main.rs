@@ -8,6 +8,7 @@ use std::{
 };
 
 use scanner::Scanner;
+use token::{TokenType, Token};
 
 mod scanner;
 mod token;
@@ -64,14 +65,25 @@ impl Lax {
         scanner.scan_tokens();
     }
 
-    pub fn error(&mut self, line_num: usize, message: String) {
-        self.report(line_num, String::new(), message);
+    pub fn error(&mut self, line_num: usize, message: &str) {
+        self.report(line_num, "", message);
     }
 
-    fn report(&mut self, line_num: usize, location: String, message: String) {
+    pub fn parse_error(&mut self, token: Token, message: &str) {
+        match token.token_type == TokenType::Eof {
+            true => self.report(token.line, " at end", message),
+            false => { 
+                let location = " at '{token.lexeme}'";
+                self.report(token.line, location, message);
+            }
+        }
+    }
+
+    fn report(&mut self, line_num: usize, location: &str, message: &str) {
         println!(
             "[line {}] Error{}: {}", line_num, location, message
         );
        self.had_error = true; 
     }
+
 }
