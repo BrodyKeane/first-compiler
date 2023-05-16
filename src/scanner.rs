@@ -125,7 +125,7 @@ impl<'a> Scanner<'a> {
         let num = 
             self.source[self.start..self.current]
             .to_string()
-            .parse::<f64>();
+            .parse::<isize>();
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,

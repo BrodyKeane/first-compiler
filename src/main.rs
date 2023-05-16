@@ -17,6 +17,7 @@ use ast::{
 mod scanner;
 mod token;
 mod ast;
+mod interpreter;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();

@@ -25,12 +25,23 @@ pub enum TokenType{
     Eof,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LitType {
     String(String),
-    Num(f64),
+    Num(isize),
     Bool(bool),
     None
+}
+
+impl LitType {
+    pub fn unwrap(&self) -> Option<&dyn fmt::Display> {
+        match self {
+            LitType::String(val) => Some(val),
+            LitType::Num(val) => Some(val),
+            LitType::Bool(val) => Some(val),
+            LitType::None => None,
+        }
+    }
 }
 
 impl fmt::Display for LitType {
@@ -55,7 +66,6 @@ pub struct Token {
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String,
         literal: LitType, line: usize) -> Token {
-
         Token {
             token_type,
             lexeme,
