@@ -9,6 +9,10 @@ use std::{
 
 use scanner::Scanner;
 use token::{TokenType, Token};
+use ast::{
+    parser::Parser,
+    ast_printer::AstPrinter,
+};
 
 mod scanner;
 mod token;
@@ -25,6 +29,7 @@ fn main() {
             process::exit(64);
         },
     };
+    
 }
 
 pub struct Lax {
@@ -62,7 +67,11 @@ impl Lax {
 
     fn run(&mut self, source: String) {
         let mut scanner = Scanner::new(self, source);
-        scanner.scan_tokens();
+        let tokens = scanner.scan_tokens().clone();
+        let mut parser = Parser::new(self, tokens);
+        let expr = parser.parse();
+        if self.had_error {return};
+        println!("{}", AstPrinter.print(expr.unwrap()));
     }
 
     pub fn error(&mut self, line_num: usize, message: &str) {
@@ -73,8 +82,8 @@ impl Lax {
         match token.token_type == TokenType::Eof {
             true => self.report(token.line, " at end", message),
             false => { 
-                let location = " at '{token.lexeme}'";
-                self.report(token.line, location, message);
+                let location = format!(" at '{}'", token.lexeme);
+                self.report(token.line, &location, message);
             }
         }
     }

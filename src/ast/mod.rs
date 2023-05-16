@@ -1,4 +1,4 @@
 mod expr;
-mod ast_printer;
-mod parser;
+pub mod ast_printer;
+pub mod parser;
 

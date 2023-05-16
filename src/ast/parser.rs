@@ -4,7 +4,7 @@ use crate::{
     Lax
 };
 
-struct Parser<'a> {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     curr: usize,
     lax: &'a mut Lax,
@@ -19,7 +19,14 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn expressoin(&mut self) -> Result<Expr, ParseError> {
+    pub fn parse(&mut self) -> Option<Expr> {
+        match self.expression() {
+            Ok(expr) => Some(expr),
+            Err(_) => None,
+        }
+    }
+
+    fn expression(&mut self) -> Result<Expr, ParseError> {
         self.equality()
     }
 
@@ -30,7 +37,7 @@ impl<'a> Parser<'a> {
             TokenType::BangEqual,
             TokenType::EqualEqual
         )) {
-            let operator: Token = self.previous().to_owned();
+            let operator: Token = self.previous().clone();
             let right: Expr = self.comparison()?;
             expr = Expr::new_binary(expr, operator, right);
         }
@@ -46,7 +53,7 @@ impl<'a> Parser<'a> {
             TokenType::Less,
             TokenType::LessEqual,
         )) {
-            let operator: Token = self.previous().to_owned();
+            let operator: Token = self.previous().clone();
             let right: Expr = self.term()?;
             expr = Expr::new_binary(expr, operator, right);
         }
@@ -59,7 +66,7 @@ impl<'a> Parser<'a> {
             TokenType::Minus,
             TokenType::Plus,
         )) {
-            let operator: Token = self.previous().to_owned();
+            let operator: Token = self.previous().clone();
             let right: Expr = self.factor()?;
             expr = Expr::new_binary(expr, operator, right)
         }
@@ -72,7 +79,7 @@ impl<'a> Parser<'a> {
             TokenType::Star,
             TokenType::Slash,
         )) {
-            let operator: Token = self.previous().to_owned();
+            let operator: Token = self.previous().clone();
             let right: Expr = self.unary()?;
             expr = Expr::new_binary(expr, operator, right);
         }
@@ -84,7 +91,7 @@ impl<'a> Parser<'a> {
             TokenType::Bang,
             TokenType::Minus,
         )) {
-            let operator = self.previous().to_owned();
+            let operator = self.previous().clone();
             let right = self.unary()?;
             return Ok(Expr::new_unary(operator, right))
         }
@@ -92,20 +99,19 @@ impl<'a> Parser<'a> {
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        let value = match self.peek().token_type {
+        let value = match self.advance().token_type {
             TokenType::False => LitType::Bool(false),
             TokenType::True => LitType::Bool(true),
             TokenType::Nil => LitType::None,
             TokenType::Number 
-            | TokenType::String => self.previous().literal.to_owned(),
+            | TokenType::String => self.previous().literal.clone(),
             TokenType::OpenParen => {
-                let expr = self.expressoin()?;
-                self.consume(TokenType::CloseParen, "Expect ')' after expression.");
+                let expr = self.expression()?;
+                self.consume(TokenType::CloseParen, "Expect ')' after expression.")?;
                 return Ok(Expr::new_grouping(expr))
             }
-            _ => return Err(self.error(self.peek().to_owned(), "Expected expression.")),
+            _ => return Err(self.error(self.peek().clone(), "Expected expression.")),
         };
-
         Ok(Expr::new_literal(value))
     }
 
@@ -113,13 +119,14 @@ impl<'a> Parser<'a> {
         ) -> Result<&Token, ParseError> {
         match self.check(token_type) {
             true => Ok(self.advance()),
-            false => Err(self.error(self.peek().to_owned(), message)),
+            false => Err(self.error(self.peek().clone(), message)),
         }
     }
 
-    fn match_token(&self, types: Vec<TokenType>) -> bool {
+    fn match_token(&mut self, types: Vec<TokenType>) -> bool {
         for token_type in types {
             if self.check(token_type) {
+                self.advance();
                 return true
             }
         }
