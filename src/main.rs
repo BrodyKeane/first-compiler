@@ -2,7 +2,6 @@
 
 use std::{
     io::{self, Write},
-    error::Error,
     env,
     process,
     fs, 
@@ -10,7 +9,7 @@ use std::{
 
 use scanner::Scanner;
 use error::ErrorStatus;
-use interpreter::{Interpreter, RuntimeError};
+use interpreter::Interpreter;
 use ast::parser::Parser;
 
 mod scanner;
@@ -47,10 +46,9 @@ impl Lax {
     }
     pub fn run_file(&mut self, path: &String) {
         let source = fs::read_to_string(path).unwrap();
-        let mut status = ErrorStatus::new();
         self.run(source);
-        if status.had_compile_error {process::exit(65)}
-        if status.had_runtime_error {process::exit(70)}
+        if self.status.had_compile_error {process::exit(65)}
+        if self.status.had_runtime_error {process::exit(70)}
     }
 
     pub fn run_prompt(&mut self) {

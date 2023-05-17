@@ -43,13 +43,13 @@ impl Parser {
 
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let value: Expr = self.expression()?;
-        self.consume(TokenType::Semicolon, "Expect ';' after value.");
+        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::new_print(value))
     }
 
     fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
         let expr = self.expression()?;
-        self.consume(TokenType::Semicolon, "Expect ';' after expression");
+        self.consume(TokenType::Semicolon, "Expect ';' after expression")?;
         Ok(Stmt::new_stmt_expr(expr))
     }
 
@@ -118,7 +118,7 @@ impl Parser {
             let right = self.unary()?;
             return Ok(Expr::new_unary(operator, right))
         }
-        return self.primary()
+        self.primary()
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {

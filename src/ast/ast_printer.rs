@@ -8,7 +8,7 @@ use crate::ast::expr::{
 pub struct AstPrinter;
 
 impl AstPrinter {
-    pub fn print(&mut self, expr: Expr) -> String{
+    pub fn print(&mut self, expr: &Expr) -> String{
         expr.accept(self)
     }
 
@@ -20,7 +20,7 @@ impl AstPrinter {
         if let Some(exprs) = exprs {
             for expr in exprs {
                 builder += " ";
-                builder += &expr.accept(self);
+                builder += &self.print(expr);
             }
         }
         builder += ")";
