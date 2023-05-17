@@ -1,10 +1,10 @@
 use crate::ast::expr;
 
-pub trait Data {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output;
+pub trait AcceptStmtVisitor {
+    fn accept<V: StmtVisitor>(&self, visitor: &mut V) -> V::Output;
 }
 
-pub trait Visitor {
+pub trait StmtVisitor {
     type Output;
 
     fn visit_expression_stmt(&mut self, stmt: &StmtExpr) -> Self::Output;
@@ -23,8 +23,8 @@ pub enum Stmt{
     Print(Print),
 }
 
-impl Data for Stmt {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output {
+impl AcceptStmtVisitor for Stmt {
+    fn accept<V: StmtVisitor>(&self, visitor: &mut V) -> V::Output {
         match self {
             Stmt::StmtExpr(stmt) => visitor.visit_expression_stmt(stmt),
             Stmt::Print(stmt) => visitor.visit_print_stmt(stmt),
@@ -43,9 +43,9 @@ impl Stmt {
 }
 
 pub struct StmtExpr {
-    expr: expr::Expr
+    pub expr: expr::Expr
 }
 
 pub struct Print {
-    expr: expr::Expr
+    pub expr: expr::Expr
 }

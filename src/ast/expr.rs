@@ -1,10 +1,10 @@
 use crate::token::{Token, LitType};
 
-pub trait Data {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output;
+pub trait AcceptExprVisitor {
+    fn accept<V: ExprVisitor>(&self, visitor: &mut V) -> V::Output;
 }
 
-pub trait Visitor {
+pub trait ExprVisitor {
     type Output;
 
     fn visit_binary_expr(&mut self, expr: &Binary) -> Self::Output;
@@ -29,8 +29,8 @@ pub enum Expr {
     Unary(Unary),
 }
 
-impl Data for Expr {
-    fn accept<V: Visitor>(&self, visitor: &mut V) -> V::Output {
+impl AcceptExprVisitor for Expr {
+    fn accept<V: ExprVisitor>(&self, visitor: &mut V) -> V::Output {
         match self {
             Expr::Binary(expr) => visitor.visit_binary_expr(expr),
             Expr::Grouping(expr) => visitor.visit_grouping_expr(expr),

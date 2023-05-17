@@ -1,7 +1,8 @@
 use crate::ast::expr::{
     self,
     Expr,
-    Data
+    AcceptExprVisitor,
+    ExprVisitor,
 };
 
 pub struct AstPrinter;
@@ -12,7 +13,7 @@ impl AstPrinter {
     }
 
     pub fn parenthesize(&mut self, name: &str,
-        exprs: Option<Vec<&Box<Expr>>>) -> String {
+        exprs: Option<Vec<&Expr>>) -> String {
         let mut builder = String::new();
         builder += "(";
         builder += name;
@@ -27,7 +28,7 @@ impl AstPrinter {
     }
 }
 
-impl expr::Visitor for AstPrinter {
+impl ExprVisitor for AstPrinter {
     type Output = String;
 
     fn visit_binary_expr(&mut self, expr: &expr::Binary) -> String {

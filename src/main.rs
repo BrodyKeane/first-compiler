@@ -77,14 +77,15 @@ impl Lax {
         );
         if self.status.had_compile_error {return};
 
-        let expr = match parser.parse() {
-            Ok(expr) => expr,
+        let stmts = match parser.parse() {
+            Ok(stmts) => stmts,
             Err(error) => {
                 self.status.report_compile_error(error);
                 return
             }
         };
-        if let Err(error) = self.interpreter.interpret(&expr) {
+
+        if let Err(error) = self.interpreter.interpret(&stmts) {
              self.status.report_runtime_error(error); 
         }
     }
