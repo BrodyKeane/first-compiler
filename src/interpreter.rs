@@ -6,7 +6,7 @@ use crate::{
     token::{Token, LitType, TokenType},
 };
 
-struct Interpreter;
+pub struct Interpreter;
 
 impl Interpreter {
     pub fn interpret(&mut self, expr: &Expr) -> Result<(), RuntimeError>{

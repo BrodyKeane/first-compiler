@@ -22,4 +22,4 @@ impl ErrorStatus {
         eprintln!("{}", error);
         self.had_runtime_error = true;
     }
-}
+} 
