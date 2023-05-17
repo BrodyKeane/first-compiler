@@ -39,6 +39,9 @@ impl expr::Visitor for Interpreter {
         let token_type = &expr.operator.token_type;
         Ok(match (output, token_type) {
             (LitType::Num(val), TokenType::Minus) => LitType::Num(-val),
+            (_, TokenType::Minus) => return Err(
+                RuntimeError::new(expr.operator.clone(), "Operand must be a number.")
+            ),
             (val, TokenType::Bang) => LitType::Bool(!self.is_truthy(val)),
             _ => LitType::None,
         })
@@ -59,16 +62,25 @@ impl expr::Visitor for Interpreter {
                 TokenType::GreaterEqual => LitType::Bool(left >= right),
                 TokenType::Less => LitType::Bool(left < right),
                 TokenType::LessEqual => LitType::Bool(left <= right),
-                _ => LitType::None,
+                _ => return Err(RuntimeError::new(
+                    expr.operator.clone(),
+                    "Operator cannot be used on numbers"
+                )),
             },
             (LitType::String(left), LitType::String(right)) => match token_type {
                 TokenType::Plus => LitType::String(left + &right),
-                _ => LitType::None
+                _ => return Err(RuntimeError::new(
+                    expr.operator.clone(),
+                    "Operator cannot be used on strings"
+                ))
             },
             (left, right)=> match token_type {
                 TokenType::EqualEqual => LitType::Bool(left == right),
                 TokenType::BangEqual => LitType::Bool(left != right),
-                _ => LitType::None,
+                _ => return Err(RuntimeError::new(
+                    expr.operator.clone(),
+                    "Operator cannot be used on values of this type"
+                ))
             }
         })
     }
@@ -79,4 +91,9 @@ pub struct RuntimeError {
     message: String,
 }
 
+impl RuntimeError {
+    pub fn new(token: Token, message: &str) -> Self {
+        RuntimeError { token, message: message.to_string() }
+    }
+}
 

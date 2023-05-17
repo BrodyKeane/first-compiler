@@ -33,17 +33,6 @@ pub enum LitType {
     None
 }
 
-impl LitType {
-    pub fn unwrap(&self) -> Option<&dyn fmt::Display> {
-        match self {
-            LitType::String(val) => Some(val),
-            LitType::Num(val) => Some(val),
-            LitType::Bool(val) => Some(val),
-            LitType::None => None,
-        }
-    }
-}
-
 impl fmt::Display for LitType {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -73,9 +62,11 @@ impl Token {
             line,
         }
     }
+}
 
-    pub fn to_string(&self) -> String {
-        format!("{:?} {:?} {:?}", self.token_type, self.lexeme, self.literal)
+impl fmt::Display for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{:?} {:?} {:?}", self.token_type, self.lexeme, self.literal)
     }
 }
 
