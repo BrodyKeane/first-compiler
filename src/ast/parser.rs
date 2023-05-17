@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use crate::{
     token::{Token, TokenType, LitType},
     ast::expr::Expr,
@@ -177,6 +180,7 @@ impl Parser {
     }
 }
 
+#[derive(Debug)]
 pub struct ParseError {
     pub token: Token,
     pub message: String,
@@ -185,5 +189,22 @@ pub struct ParseError {
 impl ParseError {
     fn new(token: Token, message: &str) -> Self {
        ParseError { token, message: message.to_string() }
+    }
+}
+
+impl Error for ParseError {}
+
+impl fmt::Display for ParseError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self.token.token_type == TokenType::Eof {
+            true => {
+                write!(f, "[line {}] Error at end: {}",
+                    self.token.line, self.message)
+            },
+            false => { 
+                write!(f, "[line {}] Error at '{}': {}",
+                    self.token.line, self.token.lexeme, self.message)
+            }
+        }
     }
 }

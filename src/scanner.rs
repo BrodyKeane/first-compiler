@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use crate::{
     token::{Token, TokenType, LitType},
     error::ErrorStatus,
@@ -28,7 +31,7 @@ impl<'a> Scanner<'a> {
         while !(self.is_at_end()) {
             self.start = self.current;
             if let Err(error) = self.scan_token() {
-                self.status.scan_error(error);
+                self.status.report_compile_error(error);
             }
         }
 
@@ -126,7 +129,7 @@ impl<'a> Scanner<'a> {
         let num = 
             self.source[self.start..self.current]
             .to_string()
-            .parse::<isize>();
+            .parse::<f64>();
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,
@@ -145,7 +148,7 @@ impl<'a> Scanner<'a> {
         };
         let text = &self.source[self.start..self.current];
         let token_type = match self.match_keyword(text) {
-            Some(t) => t.clone(),
+            Some(t) => t,
             None => TokenType::Identifier,
         };
         self.add_token(token_type);
@@ -226,6 +229,7 @@ impl<'a> Scanner<'a> {
         (c >= "0") && (c <= "9")
     }
 
+
     fn is_alpha(&self, c: &str) -> bool {
         return  (c >= "a" && c <= "z") ||
                 (c >= "A" && c <= "Z") ||
@@ -237,6 +241,7 @@ impl<'a> Scanner<'a> {
     }
 }
 
+#[derive(Debug)]
 pub struct ScanError {
     pub line: usize,
     pub message: String,
@@ -245,5 +250,13 @@ pub struct ScanError {
 impl ScanError {
     pub fn new(line: usize, message: &str) -> Self {
         ScanError { line, message: message.to_string() }
+    }
+}
+
+impl Error for ScanError {}
+
+impl fmt::Display for ScanError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "[line {}] Error: {}", self.line, self.message)
     }
 }

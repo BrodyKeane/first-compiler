@@ -37,9 +37,8 @@ pub fn run_file(path: &String) {
     let source = fs::read_to_string(path).unwrap();
     let mut status = ErrorStatus::new();
     run(&mut status, source);
-    if status.had_error {
-        process::exit(65)
-    };
+    if status.had_compile_error {process::exit(65)}
+    if status.had_runtime_error {process::exit(70)}
 }
 
 pub fn run_prompt() {
@@ -55,7 +54,7 @@ pub fn run_prompt() {
         line = line.trim().to_string();
         
         run(&mut status, line);
-        status.had_error = false;
+        status.had_compile_error = false;
     }
 }
 
@@ -64,10 +63,10 @@ fn run(status: &mut ErrorStatus, source: String) {
         Scanner::new(status, source)
         .scan_tokens()
     );
-    if status.had_error {return};
+    if status.had_compile_error{return};
     match parser.parse() {
         Ok(expr) => println!("{}", AstPrinter.print(expr)),
-        Err(error) => status.parse_error(error),
+        Err(error) => status.report_compile_error(error),
     }
 }
 

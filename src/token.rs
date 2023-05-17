@@ -25,10 +25,10 @@ pub enum TokenType{
     Eof,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub enum LitType {
     String(String),
-    Num(isize),
+    Num(f64),
     Bool(bool),
     None
 }
@@ -39,7 +39,7 @@ impl fmt::Display for LitType {
             LitType::String(value) => write!(f, "{}", value),
             LitType::Num(value) => write!(f, "{}", value),
             LitType::Bool(value) => write!(f, "{}", value),
-            LitType::None => write!(f, "None"),
+            LitType::None => write!(f, "nil"),
         }
     }
 }

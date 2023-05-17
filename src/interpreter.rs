@@ -1,3 +1,6 @@
+use std::error::Error;
+use std::fmt;
+
 use crate::{
     ast::expr::{self, Expr, Data},
     token::{Token, LitType, TokenType},
@@ -6,7 +9,13 @@ use crate::{
 struct Interpreter;
 
 impl Interpreter {
-    fn evaluate(&mut self, expr: &Box<Expr>) -> Result<LitType, RuntimeError> {
+    pub fn interpret(&mut self, expr: &Expr) -> Result<(), RuntimeError>{
+        let value: LitType = self.evaluate(expr)?;
+        println!("{}", value);
+        Ok(())
+    }
+
+    fn evaluate(&mut self, expr: &Expr) -> Result<LitType, RuntimeError> {
         expr.accept(self)
     }
 
@@ -17,7 +26,6 @@ impl Interpreter {
             _ => true
         }
     }
-
 }
 
 impl expr::Visitor for Interpreter {
@@ -86,6 +94,7 @@ impl expr::Visitor for Interpreter {
     }
 }
 
+#[derive(Debug)]
 pub struct RuntimeError {
     token: Token,
     message: String,
@@ -97,3 +106,10 @@ impl RuntimeError {
     }
 }
 
+impl Error for RuntimeError {}
+
+impl fmt::Display for RuntimeError {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}\n[line {}]", self.message, self.token.line, )
+    }
+}
