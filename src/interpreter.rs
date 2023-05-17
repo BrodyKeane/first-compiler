@@ -1,12 +1,12 @@
 use crate::{
     ast::expr::{self, Expr, Data},
-    token::{self, LitType, TokenType},
+    token::{Token, LitType, TokenType},
 };
 
 struct Interpreter;
 
 impl Interpreter {
-    fn evaluate(&mut self, expr: &Box<Expr>) -> token::LitType {
+    fn evaluate(&mut self, expr: &Box<Expr>) -> Result<LitType, RuntimeError> {
         expr.accept(self)
     }
 
@@ -21,31 +21,35 @@ impl Interpreter {
 }
 
 impl expr::Visitor for Interpreter {
-    type Output = token::LitType;
+    type Output = Result<LitType, RuntimeError>;
 
-    fn visit_literal_expr(&mut self, expr: &expr::Literal) -> LitType {
-        expr.value.clone()
+    fn visit_literal_expr(&mut self, expr: &expr::Literal
+        ) -> Result<LitType, RuntimeError> {
+        Ok(expr.value.clone())
     }
 
-    fn visit_grouping_expr(&mut self, expr: &expr::Grouping) -> LitType {
+    fn visit_grouping_expr(&mut self, expr: &expr::Grouping
+        ) -> Result<LitType, RuntimeError> {
         self.evaluate(&expr.expr)
     }
 
-    fn visit_unary_expr(&mut self, expr: &expr::Unary) -> LitType {
-        let output: LitType = self.evaluate(&expr.right);
+    fn visit_unary_expr(&mut self, expr: &expr::Unary
+        ) -> Result<LitType, RuntimeError> {
+        let output: LitType = self.evaluate(&expr.right)?;
         let token_type = &expr.operator.token_type;
-        match (output, token_type) {
+        Ok(match (output, token_type) {
             (LitType::Num(val), TokenType::Minus) => LitType::Num(-val),
             (val, TokenType::Bang) => LitType::Bool(!self.is_truthy(val)),
             _ => LitType::None,
-        }
+        })
     }
 
-    fn visit_binary_expr(&mut self, expr: &expr::Binary) -> LitType {
-        let left: LitType = self.evaluate(&expr.left);
-        let right: LitType = self.evaluate(&expr.right);
+    fn visit_binary_expr(&mut self, expr: &expr::Binary
+        ) -> Result<LitType, RuntimeError> {
+        let left: LitType = self.evaluate(&expr.left)?;
+        let right: LitType = self.evaluate(&expr.right)?;
         let token_type = &expr.operator.token_type;
-        match (left, right) {
+        Ok(match (left, right) {
             (LitType::Num(left), LitType::Num(right)) => match token_type {
                 TokenType::Plus => LitType::Num(left + right),
                 TokenType::Minus => LitType::Num(left - right),
@@ -66,8 +70,13 @@ impl expr::Visitor for Interpreter {
                 TokenType::BangEqual => LitType::Bool(left != right),
                 _ => LitType::None,
             }
-        }
+        })
     }
+}
+
+pub struct RuntimeError {
+    token: Token,
+    message: String,
 }
 
 

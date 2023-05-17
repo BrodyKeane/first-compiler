@@ -1,6 +1,6 @@
 use crate::{
     token::{Token, TokenType, LitType},
-    Lax,
+    error::ErrorStatus,
 };
 
 pub struct Scanner<'a> {
@@ -9,25 +9,27 @@ pub struct Scanner<'a> {
     start: usize,
     current: usize,
     line: usize,
-    lax: &'a mut Lax,
+    status: &'a mut ErrorStatus,
 }
 
 impl<'a> Scanner<'a> {
-    pub fn new(lax: &'a mut Lax, source: String,) -> Scanner {
+    pub fn new(status: &'a mut ErrorStatus, source: String,) -> Scanner {
         Scanner {
             source,
             tokens: vec!(),
             start: 0,
             current: 0,
             line: 1,
-            lax,
+            status,
         }
     }
 
-    pub fn scan_tokens(&mut self) -> &Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Vec<Token> {
         while !(self.is_at_end()) {
             self.start = self.current;
-            self.scan_token();
+            if let Err(error) = self.scan_token() {
+                self.status.scan_error(error);
+            }
         }
 
         let end_token = Token::new(
@@ -38,10 +40,10 @@ impl<'a> Scanner<'a> {
         );
 
         self.tokens.push(end_token);
-        &self.tokens
+        self.tokens.clone()
     }
 
-    fn scan_token(&mut self) {
+    fn scan_token(&mut self) -> Result<(), ScanError>{
         self.advance();
         match self.curr() {
             "(" => self.add_token(TokenType::OpenParen),
@@ -77,29 +79,27 @@ impl<'a> Scanner<'a> {
 
             (" " | "\r" | "\t") => {} //Whitespace chars are skipped
             "\n" => self.line += 1,
-            "\"" => self.tokenize_string(),
+            "\"" => self.tokenize_string()?,
 
-            c if self.is_digit(c) => self.tokenize_number(),
+            c if self.is_digit(c) => self.tokenize_number()?,
             c if self.is_alpha(c) => self.tokenize_identifier(),
             
-            _ => self.lax.error(
-                    self.line,
-                    "Unexpected character."
+            _ => return Err(
+                ScanError::new(self.line, "Unexpected character.")
             ),
         }
+        Ok(())
     }
     
-    fn tokenize_string(&mut self) {
+    fn tokenize_string(&mut self) -> Result<(), ScanError> {
         while (self.peek() != "\"") && (!self.is_at_end()) {
             if self.peek() == "\n" {self.line += 1};
             self.advance();
         }
         if self.is_at_end() {
-            self.lax.error(
-                self.line,
-                "Unterminated string."
-            );
-            return
+            return Err(
+                ScanError::new(self.line, "Unterminated string.")
+            )
         }
         self.advance();
 
@@ -110,9 +110,10 @@ impl<'a> Scanner<'a> {
             TokenType::String,
             LitType::String(value)
         );
+        Ok(())
     }
 
-    fn tokenize_number(&mut self) {
+    fn tokenize_number(&mut self) -> Result<(), ScanError> {
         while self.is_digit(self.peek()) {
             self.advance()
         };
@@ -131,11 +132,11 @@ impl<'a> Scanner<'a> {
                 TokenType::Number,
                 LitType::Num(n)
             ),
-            Err(_) => self.lax.error(
-                self.line,
-                "Failed to parse number."
-            )
+            Err(_) => return Err(
+                ScanError::new(self.line, "Failed to parse number.")
+            ),
         }
+        Ok(())
     }
 
     fn tokenize_identifier(&mut self) {
@@ -233,5 +234,16 @@ impl<'a> Scanner<'a> {
 
     fn is_alpha_numeric(&self, c: &str) -> bool {
         self.is_alpha(c) || self.is_digit(c)
+    }
+}
+
+pub struct ScanError {
+    pub line: usize,
+    pub message: String,
+}
+
+impl ScanError {
+    pub fn new(line: usize, message: &str) -> Self {
+        ScanError { line, message: message.to_string() }
     }
 }

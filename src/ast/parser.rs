@@ -1,29 +1,23 @@
 use crate::{
     token::{Token, TokenType, LitType},
     ast::expr::Expr,
-    Lax
 };
 
-pub struct Parser<'a> {
+pub struct Parser {
     tokens: Vec<Token>,
     curr: usize,
-    lax: &'a mut Lax,
 }
 
-impl<'a> Parser<'a> {
-    pub fn new(lax: &'a mut Lax, tokens: Vec<Token>) -> Self {
+impl Parser {
+    pub fn new(tokens: Vec<Token>) -> Self {
         Parser{
             tokens,
             curr: 0,
-            lax
         }
     }
 
-    pub fn parse(&mut self) -> Option<Expr> {
-        match self.expression() {
-            Ok(expr) => Some(expr),
-            Err(_) => None,
-        }
+    pub fn parse(&mut self) -> Result<Expr, ParseError> {
+        self.expression()
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
@@ -110,7 +104,9 @@ impl<'a> Parser<'a> {
                 self.consume(TokenType::CloseParen, "Expect ')' after expression.")?;
                 return Ok(Expr::new_grouping(expr))
             }
-            _ => return Err(self.error(self.peek().clone(), "Expected expression.")),
+            _ => return Err(
+                ParseError::new(self.peek().clone(), "Expected expression.")
+            ),
         };
         Ok(Expr::new_literal(value))
     }
@@ -119,7 +115,9 @@ impl<'a> Parser<'a> {
         ) -> Result<&Token, ParseError> {
         match self.check(token_type) {
             true => Ok(self.advance()),
-            false => Err(self.error(self.peek().clone(), message)),
+            false => Err(
+                ParseError::new(self.peek().clone(), message)
+            ),
         }
     }
 
@@ -155,11 +153,6 @@ impl<'a> Parser<'a> {
         &self.tokens[self.curr - 1]
     }
 
-    fn error(&mut self, token: Token, message: &str) -> ParseError {
-        self.lax.parse_error(token, message);
-        ParseError::new()
-    }
-
     //jumps to start of next statement
     fn synchronize(&mut self) {
         self.advance();
@@ -184,12 +177,13 @@ impl<'a> Parser<'a> {
     }
 }
 
-struct ParseError {
-    tokens: Vec<Token>,
+pub struct ParseError {
+    pub token: Token,
+    pub message: String,
 }
 
 impl ParseError {
-    fn new() -> Self {
-        ParseError {tokens: vec![]}
+    fn new(token: Token, message: &str) -> Self {
+       ParseError { token, message: message.to_string() }
     }
 }
