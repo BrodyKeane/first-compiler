@@ -41,7 +41,7 @@ struct Lax {
 impl Lax {
     pub fn new() -> Self {
         Lax {
-            interpreter: Interpreter,
+            interpreter: Interpreter::new(),
             status: ErrorStatus::new() 
         }
     }

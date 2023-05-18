@@ -5,8 +5,8 @@ use crate::{
     interpreter::RuntimeError,
 };
 
-struct Enviroment {
-    values: HashMap<String, LitType>
+pub struct Enviroment {
+    pub values: HashMap<String, LitType>
 }
 
 impl Enviroment {
@@ -18,7 +18,8 @@ impl Enviroment {
         self.values.insert(name, value);
     }
 
-    pub fn get(&self, token: Token) -> Result<&LitType, RuntimeError> {
+    pub fn get(&self, token: Token
+        ) -> Result<&LitType, RuntimeError> {
         match self.values.get(&token.lexeme) {
             Some(name) => Ok(name),
             None => {

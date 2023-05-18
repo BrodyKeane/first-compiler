@@ -7,11 +7,18 @@ use crate::{
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
     token::{Token, LitType, TokenType},
+    enviroment::Enviroment,
 };
 
-pub struct Interpreter;
+pub struct Interpreter {
+    enviroment: Enviroment,
+}
 
 impl Interpreter {
+    pub fn new() -> Self {
+       Interpreter { enviroment: Enviroment::new() }
+    }
+
     pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError>{
         for stmt in stmts {
             self.execute(stmt)?;
@@ -41,7 +48,7 @@ impl ExprVisitor for Interpreter {
 
     fn visit_literal_expr(&mut self, expr: &expr::Literal
         ) -> Self::Output {
-        Ok(expr.value.clone())
+        Ok(expr.value)
     }
 
     fn visit_grouping_expr(&mut self, expr: &expr::Grouping
@@ -69,31 +76,29 @@ impl ExprVisitor for Interpreter {
         let right: LitType = self.evaluate(&expr.right)?;
         let token_type = &expr.operator.token_type;
 
-        Ok(match (left, right) {
-            (LitType::Num(left), LitType::Num(right)) => 
-                match token_type {
-                    TokenType::Plus => LitType::Num(left + right),
-                    TokenType::Minus => LitType::Num(left - right),
-                    TokenType::Star => LitType::Num(left * right),
-                    TokenType::Slash => LitType::Num(left / right),
-                    TokenType::Greater => LitType::Bool(left > right),
-                    TokenType::GreaterEqual => LitType::Bool(left >= right),
-                    TokenType::Less => LitType::Bool(left < right),
-                    TokenType::LessEqual => LitType::Bool(left <= right),
-                    _ => return Err(RuntimeError::new(
-                        expr.operator.clone(),
-                        "Operator cannot be used on numbers"
-                    )),
-                },
+        let value = match (left, right) {
+            (LitType::Num(left), LitType::Num(right)) => match token_type {
+                TokenType::Plus => LitType::Num(left + right),
+                TokenType::Minus => LitType::Num(left - right),
+                TokenType::Star => LitType::Num(left * right),
+                TokenType::Slash => LitType::Num(left / right),
+                TokenType::Greater => LitType::Bool(left > right),
+                TokenType::GreaterEqual => LitType::Bool(left >= right),
+                TokenType::Less => LitType::Bool(left < right),
+                TokenType::LessEqual => LitType::Bool(left <= right),
+                _ => return Err(RuntimeError::new(
+                    expr.operator.clone(),
+                    "Operator cannot be used on numbers"
+                )),
+            },
 
-            (LitType::String(left), LitType::String(right)) => 
-                match token_type {
-                    TokenType::Plus => LitType::String(left + &right),
-                    _ => return Err(RuntimeError::new(
-                        expr.operator.clone(),
-                        "Operator cannot be used on strings"
-                    ))
-                },
+            (LitType::String(left), LitType::String(right)) => match token_type {
+                TokenType::Plus => LitType::String(left + &right),
+                _ => return Err(RuntimeError::new(
+                    expr.operator.clone(),
+                    "Operator cannot be used on strings"
+                ))
+            },
 
             (left, right) => match token_type {
                 TokenType::EqualEqual => LitType::Bool(left == right),
@@ -103,7 +108,12 @@ impl ExprVisitor for Interpreter {
                     "Operator cannot be used on values of this type"
                 ))
             }
-        })
+        };
+        Ok(value)
+    }
+
+    fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
+        self.enviroment.get(expr.name).cloned()
     }
 }
 
@@ -120,6 +130,15 @@ impl StmtVisitor for Interpreter {
         ) -> Self::Output {
         let value = self.evaluate(&stmt.expr)?;
         println!("{}", value);
+        Ok(())
+    }
+
+    fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
+        let value = match stmt.initializer {
+            Some(expr) => self.evaluate(&expr)?,
+            None => LitType::None,
+        };
+        self.enviroment.define(stmt.name.lexeme, value);
         Ok(())
     }
 }
