@@ -17,6 +17,7 @@ mod token;
 mod ast;
 mod interpreter;
 mod error;
+mod enviroment;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
@@ -69,19 +70,12 @@ impl Lax {
     }
 
     fn run(&mut self, source: String) {
-        let mut parser = Parser::new(
-            Scanner::new(&mut self.status, source)
-            .scan_tokens()
-        );
-        if self.status.had_compile_error {return};
+        let mut  scanner = Scanner::new(&mut self.status, source);
+        let tokens = scanner.scan_tokens();
+        let mut parser = Parser::new(&mut self.status, tokens);
+        let stmts = parser.parse();
 
-        let stmts = match parser.parse() {
-            Ok(stmts) => stmts,
-            Err(error) => {
-                self.status.report_compile_error(error);
-                return
-            }
-        };
+        if self.status.had_compile_error {return};
 
         if let Err(error) = self.interpreter.interpret(&stmts) {
              self.status.report_runtime_error(error); 

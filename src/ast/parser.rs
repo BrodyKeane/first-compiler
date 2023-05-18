@@ -3,31 +3,40 @@ use std::fmt;
 
 use crate::{
     token::{Token, TokenType, LitType},
+    error::ErrorStatus,
     ast::{
         expr::Expr,
         stmt::Stmt,
     },
 };
 
-pub struct Parser {
+pub struct Parser<'a> {
     tokens: Vec<Token>,
     curr: usize,
+    status: &'a mut ErrorStatus,
 }
 
-impl Parser {
-    pub fn new(tokens: Vec<Token>) -> Self {
+impl<'a> Parser<'a> {
+    pub fn new(status: &'a mut ErrorStatus, tokens: Vec<Token>) -> Self {
         Parser{
             tokens,
             curr: 0,
+            status,
         }
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    pub fn parse(&mut self) -> Vec<Stmt> {
         let mut statements = vec![];
         while !self.is_at_end() {
-            statements.push(self.statement()?)
+            match self.declaration() {
+                Ok(stmt) => statements.push(stmt),
+                Err(error) => {
+                    self.synchronize();
+                    self.status.report_compile_error(error);
+                }
+            }
         }
-        Ok(statements)
+        statements
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
@@ -41,10 +50,29 @@ impl Parser {
         self.equality()
     }
 
+    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+        if self.match_token(vec!(TokenType::Let)) {
+            return self.let_declaration();
+        }
+        self.statement()
+    }
+
     fn print_statement(&mut self) -> Result<Stmt, ParseError> {
         let value: Expr = self.expression()?;
         self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
         Ok(Stmt::new_print(value))
+    }
+
+    fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
+
+        let mut initializer = None;
+        if self.match_token(vec!(TokenType::Equal)) {
+            initializer = Some(self.expression()?);
+        }
+
+        self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.")?;
+        Ok(Stmt::new_let(name.clone(), initializer))
     }
 
     fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -122,22 +150,36 @@ impl Parser {
     }
 
     fn primary(&mut self) -> Result<Expr, ParseError> {
-        let value = match self.advance().token_type {
-            TokenType::False => LitType::Bool(false),
-            TokenType::True => LitType::Bool(true),
-            TokenType::Nil => LitType::None,
-            TokenType::Number 
-            | TokenType::String => self.previous().literal.clone(),
-            TokenType::OpenParen => {
-                let expr = self.expression()?;
-                self.consume(TokenType::CloseParen, "Expect ')' after expression.")?;
-                return Ok(Expr::new_grouping(expr))
-            }
+        let expr = match self.advance().token_type {
+            TokenType::False => 
+                Expr::new_literal(LitType::Bool(false)),
+                
+            TokenType::True => 
+                Expr::new_literal(LitType::Bool(true)),
+
+            TokenType::Nil => 
+                Expr::new_literal(LitType::None),
+
+            TokenType::Number | TokenType::String =>
+                Expr::new_literal(self.previous().literal.clone()),
+
+            TokenType::Identifier => 
+                Expr::new_var(self.previous().clone()),
+
+            TokenType::OpenParen => 
+                Expr::new_grouping(self.grouping()?),
+
             _ => return Err(
                 ParseError::new(self.peek().clone(), "Expected expression.")
             ),
         };
-        Ok(Expr::new_literal(value))
+        Ok(expr) 
+    }
+
+    fn grouping(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.expression()?;
+        self.consume(TokenType::CloseParen, "Expect ')' after expression.")?;
+        Ok(expr)
     }
 
     fn consume(&mut self, token_type: TokenType, message: &str
