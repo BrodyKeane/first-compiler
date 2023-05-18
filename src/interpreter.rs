@@ -16,7 +16,7 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-       Interpreter { enviroment: Enviroment::new() }
+       Interpreter { enviroment: Enviroment::new(None) }
     }
 
     pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError>{
@@ -141,7 +141,7 @@ impl StmtVisitor for Interpreter {
 
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
         let value = match &stmt.initializer {
-            Some(expr) => self.evaluate(&expr)?,
+            Some(expr) => self.evaluate(expr)?,
             None => LitType::None,
         };
         self.enviroment.define(&stmt.name.lexeme, value);

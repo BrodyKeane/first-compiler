@@ -7,7 +7,7 @@ use crate::{
     ast::{
         expr::Expr,
         stmt::Stmt,
-    }, interpreter::RuntimeError,
+    }, 
 };
 
 pub struct Parser<'a> {
@@ -226,7 +226,7 @@ impl<'a> Parser<'a> {
             self.advance();
             return true
         }
-        return false
+        false
     }
 
     fn check(&self, token_type: TokenType) -> bool {
