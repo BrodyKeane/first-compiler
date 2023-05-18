@@ -7,7 +7,7 @@ use crate::{
     ast::{
         expr::Expr,
         stmt::Stmt,
-    },
+    }, interpreter::RuntimeError,
 };
 
 pub struct Parser<'a> {
@@ -40,18 +40,14 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(vec!(TokenType::Print)) {
+        if self.match_token(TokenType::Print) {
             return self.print_statement()
         }
         self.expr_stmt()
     }
 
-    fn expression(&mut self) -> Result<Expr, ParseError> {
-        self.equality()
-    }
-
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(vec!(TokenType::Let)) {
+        if self.match_token(TokenType::Let) {
             return self.let_declaration();
         }
         self.statement()
@@ -64,15 +60,17 @@ impl<'a> Parser<'a> {
     }
 
     fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = self.consume(TokenType::Identifier, "Expect variable name.")?;
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.")?
+            .clone();
 
         let mut initializer = None;
-        if self.match_token(vec!(TokenType::Equal)) {
+        if self.match_token(TokenType::Equal) {
             initializer = Some(self.expression()?);
         }
 
         self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.")?;
-        Ok(Stmt::new_let(name.clone(), initializer))
+        Ok(Stmt::new_let(name, initializer))
     }
 
     fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -81,10 +79,32 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_stmt_expr(expr))
     }
 
+    fn expression(&mut self) -> Result<Expr, ParseError> {
+        self.assignment()
+    }
+
+    fn assignment(&mut self) -> Result<Expr, ParseError> {
+        let expr = self.equality()?;
+
+        if !self.match_token(TokenType::Equal) {
+            return Ok(expr)
+        } 
+
+        let value: Expr = self.assignment()?;
+
+        match expr {
+            Expr::Var(var) => Ok(Expr::new_assign(var.name, value)),
+            _ => {
+                let equals = self.previous().clone();
+                Err(ParseError::new(equals, "Invalid assignment target."))
+            }
+        }
+    }
+
     fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr: Expr = self.comparison()?;
         
-        while self.match_token(vec!(
+        while self.match_tokens(vec!(
             TokenType::BangEqual,
             TokenType::EqualEqual
         )) {
@@ -98,7 +118,7 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term()?;
-        while self.match_token(vec!(
+        while self.match_tokens(vec!(
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
@@ -113,7 +133,7 @@ impl<'a> Parser<'a> {
 
     fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor()?;
-        while self.match_token(vec!(
+        while self.match_tokens(vec!(
             TokenType::Minus,
             TokenType::Plus,
         )) {
@@ -126,7 +146,7 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
-        while self.match_token(vec!(
+        while self.match_tokens(vec!(
             TokenType::Star,
             TokenType::Slash,
         )) {
@@ -138,7 +158,7 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_token(vec!(
+        if self.match_tokens(vec!(
             TokenType::Bang,
             TokenType::Minus,
         )) {
@@ -192,14 +212,21 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn match_token(&mut self, types: Vec<TokenType>) -> bool {
+    fn match_tokens(&mut self, types: Vec<TokenType>) -> bool {
         for token_type in types {
-            if self.check(token_type) {
-                self.advance();
+            if self.match_token(token_type) {
                 return true
             }
         }
         false
+    }
+
+    fn match_token(&mut self, token_type: TokenType) -> bool {
+        if self.check(token_type) {
+            self.advance();
+            return true
+        }
+        return false
     }
 
     fn check(&self, token_type: TokenType) -> bool {

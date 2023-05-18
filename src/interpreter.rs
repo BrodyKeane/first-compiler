@@ -48,7 +48,7 @@ impl ExprVisitor for Interpreter {
 
     fn visit_literal_expr(&mut self, expr: &expr::Literal
         ) -> Self::Output {
-        Ok(expr.value)
+        Ok(expr.value.clone())
     }
 
     fn visit_grouping_expr(&mut self, expr: &expr::Grouping
@@ -113,7 +113,13 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
-        self.enviroment.get(expr.name).cloned()
+        self.enviroment.get(&expr.name).cloned()
+    }
+
+    fn visit_assign_expr(&mut self, expr: &expr::Assign) -> Self::Output {
+        let value: LitType = self.evaluate(&expr.value)?;
+        self.enviroment.assign(expr.name.clone(), value.clone())?;
+        Ok(value)
     }
 }
 
@@ -134,11 +140,11 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
-        let value = match stmt.initializer {
+        let value = match &stmt.initializer {
             Some(expr) => self.evaluate(&expr)?,
             None => LitType::None,
         };
-        self.enviroment.define(stmt.name.lexeme, value);
+        self.enviroment.define(&stmt.name.lexeme, value);
         Ok(())
     }
 }

@@ -12,7 +12,7 @@ pub trait ExprVisitor {
     fn visit_literal_expr(&mut self, expr: &Literal) -> Self::Output;
     fn visit_unary_expr(&mut self, expr: &Unary) -> Self::Output;
     fn visit_var_expr(&mut self, expr: &Var) -> Self::Output;
-//    fn visit_assign_expr(&mut self, expr: &Assign) -> Self::Output;
+    fn visit_assign_expr(&mut self, expr: &Assign) -> Self::Output;
 //    fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
 //    fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
 //    fn visit_logical_expr(&mut self, expr: &Logical) -> Self::Output;
@@ -27,7 +27,8 @@ pub enum Expr {
     Grouping(Grouping),
     Literal(Literal),
     Unary(Unary),
-    Var(Var)
+    Var(Var),
+    Assign(Assign),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -38,6 +39,7 @@ impl AcceptExprVisitor for Expr {
             Expr::Literal(expr) => visitor.visit_literal_expr(expr),
             Expr::Unary(expr) => visitor.visit_unary_expr(expr),
             Expr::Var(expr) => visitor.visit_var_expr(expr),
+            Expr::Assign(expr) => visitor.visit_assign_expr(expr),
         }
     }
 }
@@ -73,6 +75,13 @@ impl Expr {
             name
         })
     }
+
+    pub fn new_assign(name: Token, value: Expr) -> Self {
+        Expr::Assign(Assign {
+            name,
+            value: Box::new(value),
+        })
+    }
 }
 
 pub struct Binary {
@@ -98,3 +107,7 @@ pub struct Var {
     pub name: Token,
 }
 
+pub struct Assign {
+    pub name: Token,
+    pub value: Box<Expr>,
+}
