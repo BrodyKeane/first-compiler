@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt;
+use std::mem;
 
 use crate::{
     ast::{
@@ -34,15 +35,12 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, enviroment: Environment
-        ) -> Result<(), RuntimeError> {
-        self.enviroment = enviroment;
-
+    fn execute_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError> {
+        self.enviroment = Environment::new(Some(self.enviroment.clone()));
         for stmt in stmts {
             self.execute(stmt)?;
         }
-
-        self.enviroment = self.enviroment.enclosing;
+        self.enviroment = Environment::new(*self.enviroment.enclosing.clone());
         Ok(())
     }
 
@@ -174,8 +172,7 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_block_stmt(&mut self, stmt: &stmt::Block) -> Self::Output {
-        let enviroment = Environment::new(Some(self.enviroment.clone()));
-        self.execute_block(&stmt.stmts, enviroment)?;
+        self.execute_block(&stmt.stmts)?;
         Ok(())
     }
 
