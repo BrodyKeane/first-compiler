@@ -16,10 +16,10 @@ pub trait StmtVisitor {
     fn visit_let_stmt(&mut self, stmt: &Let) -> Self::Output;
     fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
     fn visit_if_stmt(&mut self, stmt: &If) -> Self::Output;
+    fn visit_while_stmt(&mut self, stmt: &While) -> Self::Output;
 //    fn visit_function_stmt(&mut self, stmt: &Function) -> Self::Output;
 //    fn visit_return_stmt(&mut self, stmt: &Return) -> Self::Output;
 //    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
-//    fn visit_while_stmt(&mut self, stmt: &While) -> Self::Output;
 }
 
 pub enum Stmt{
@@ -28,6 +28,7 @@ pub enum Stmt{
     Let(Let),
     Block(Block),
     If(If),
+    While(While),
 }
 
 impl AcceptStmtVisitor for Stmt {
@@ -38,6 +39,7 @@ impl AcceptStmtVisitor for Stmt {
             Stmt::Let(stmt) => visitor.visit_let_stmt(stmt),
             Stmt::Block(stmt) => visitor.visit_block_stmt(stmt),
             Stmt::If(stmt) => visitor.visit_if_stmt(stmt),
+            Stmt::While(stmt) => visitor.visit_while_stmt(stmt),
         }
     }
 }
@@ -66,6 +68,13 @@ impl Stmt {
             else_body: Box::new(else_body)
         })
     }
+
+    pub fn new_while(condition: Expr, body: Stmt) -> Self {
+        Self::While(While{
+            condition,
+            body: Box::new(body),
+        })
+    }
 }
 
 pub struct StmtExpr {
@@ -89,4 +98,9 @@ pub struct If {
     pub condition: Expr,
     pub body: Box<Stmt>,
     pub else_body: Box<Option<Stmt>>,
+}
+
+pub struct While {
+    pub condition: Expr,
+    pub body: Box<Stmt>,
 }

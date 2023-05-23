@@ -43,14 +43,15 @@ impl<'a> Parser<'a> {
         if self.match_token(TokenType::Let) {
             return self.let_declaration();
         }
-        self.statement()
+        self.stmt()
     }
 
-    fn statement(&mut self) -> Result<Stmt, ParseError> {
+    fn stmt(&mut self) -> Result<Stmt, ParseError> {
         let stmt = match self.peek().token_type {
             TokenType::If => self.if_stmt(),
+            TokenType::Print => self.print_stmt(),
+            TokenType::While => self.while_stmt(),
             TokenType::OpenBrace => Ok(Stmt::new_block(self.block()?)),
-            TokenType::Print => self.print_statement(),
             _ => return self.expr_stmt(),
         };
         self.advance();
@@ -62,13 +63,28 @@ impl<'a> Parser<'a> {
         let condition = self.expression()?;
         self.consume(TokenType::CloseParen, "Expect ')' after 'if' condition.");
 
-        let body = self.statement()?;
+        let body = self.stmt()?;
         
         let mut else_body = None;
         if self.match_token(TokenType::Else) {
-            else_body = Some(self.statement()?);
+            else_body = Some(self.stmt()?);
         }
         Ok(Stmt::new_if(condition, body, else_body))
+    }
+
+
+    fn print_stmt(&mut self) -> Result<Stmt, ParseError> {
+        let value: Expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
+        Ok(Stmt::new_print(value))
+    }
+
+    fn while_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::OpenParen, "Expect '(' after while.")?;
+        let condition = self.expression()?;
+        self.consume(TokenType::CloseParen, "Expect ')' after condition")?;
+        let body = self.stmt()?;
+        Ok(Stmt::new_while(condition, body))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
@@ -78,12 +94,6 @@ impl<'a> Parser<'a> {
         }
         self.consume(TokenType::CloseBrace, "Expect '}' after a block");
         Ok(stmts)
-    }
-
-    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
-        let value: Expr = self.expression()?;
-        self.consume(TokenType::Semicolon, "Expect ';' after value.")?;
-        Ok(Stmt::new_print(value))
     }
 
     fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -149,6 +159,7 @@ impl<'a> Parser<'a> {
         self.consume(TokenType::Semicolon, "Expect ';' after variable declaration.")?;
         Ok(Stmt::new_let(name, initializer))
     }
+
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr: Expr = self.comparison()?;

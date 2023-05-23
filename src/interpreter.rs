@@ -190,6 +190,14 @@ impl StmtVisitor for Interpreter {
         }
         Ok(())
     }
+
+    fn visit_while_stmt(&mut self, stmt: &stmt::While) -> Self::Output {
+        let literal = self.evaluate(&stmt.condition)?;
+        while self.is_truthy(&literal) {
+            self.execute(&stmt.body)?;
+        }
+        Ok(())
+    }
 }
 
 #[derive(Debug)]
