@@ -47,21 +47,22 @@ impl<'a> Parser<'a> {
     }
 
     fn stmt(&mut self) -> Result<Stmt, ParseError> {
-        let stmt = match self.peek().token_type {
-            TokenType::If => self.if_stmt(),
-            TokenType::Print => self.print_stmt(),
-            TokenType::While => self.while_stmt(),
-            TokenType::OpenBrace => Ok(Stmt::new_block(self.block()?)),
-            _ => return self.expr_stmt(),
-        };
-        self.advance();
-        stmt
+        match self.peek().token_type {
+            TokenType::If => {self.advance(); self.if_stmt()},
+            TokenType::Print => {self.advance(); self.print_stmt()},
+            TokenType::While => {self.advance(); self.while_stmt()},
+            TokenType::For => {self.advance(); self.for_stmt()},
+            TokenType::OpenBrace => {
+                self.advance(); Ok(Stmt::new_block(self.block()?))
+            },
+            _ => self.expr_stmt(),
+        }
     }
 
     fn if_stmt(&mut self) -> Result<Stmt, ParseError> {
-        self.consume(TokenType::OpenParen, "Expect '(' after 'if'.");
+        self.consume(TokenType::OpenParen, "Expect '(' after 'if'.")?;
         let condition = self.expression()?;
-        self.consume(TokenType::CloseParen, "Expect ')' after 'if' condition.");
+        self.consume(TokenType::CloseParen, "Expect ')' after 'if' condition.")?;
 
         let body = self.stmt()?;
         
@@ -87,12 +88,49 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_while(condition, body))
     }
 
+    fn for_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::OpenParen, "Expect '(' after 'for'.")?;
+        let initializer = match self.peek().token_type {
+            TokenType::Semicolon => {self.advance(); None},
+            TokenType::Let => {self.advance(); Some(self.let_declaration()?)},
+            _ => Some(self.expr_stmt()?),
+        };
+
+        let condition = match self.check(TokenType::Semicolon) {
+            true => Expr::new_literal(LitType::Bool(true)),
+            false => self.expression()?,
+        };
+        self.consume(TokenType::Semicolon, "Expect ';' after loop condition.")?;
+
+        let increment = match self.check(TokenType::CloseParen) {
+            true => None,
+            false => Some(self.expression()?),
+        };
+        self.consume(TokenType::CloseParen, "Expect ')' after for clauses.")?;
+
+        let mut body = self.stmt()?;
+
+        if let Some(increment) = increment {
+            body = Stmt::new_block(vec!(
+                body,
+                Stmt::new_stmt_expr(increment),
+            ));
+        }
+        
+        body = Stmt::new_while(condition, body);
+
+        if let Some(initializer) = initializer {
+            body = Stmt::new_block(vec!(initializer, body));
+        }
+        Ok(body)
+    }
+
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
         let mut stmts: Vec<Stmt> = vec!();
-        while !self.match_token(TokenType::CloseBrace) && !self.is_at_end() {
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
             stmts.push(self.declaration()?);
         }
-        self.consume(TokenType::CloseBrace, "Expect '}' after a block");
+        self.consume(TokenType::CloseBrace, "Expect '}' after a block")?;
         Ok(stmts)
     }
 

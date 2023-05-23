@@ -1,6 +1,5 @@
 use std::error::Error;
 use std::fmt;
-use std::mem;
 
 use crate::{
     ast::{
@@ -8,16 +7,16 @@ use crate::{
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
     token::{Token, LitType, TokenType},
-    enviroment::Enviroment,
+    environment::Environment,
 };
 
 pub struct Interpreter {
-    enviroment: Enviroment,
+    enviroment: Environment,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-       Interpreter { enviroment: Enviroment::new(None) }
+       Interpreter { enviroment: Environment::new(None) }
     }
 
     pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError>{
@@ -35,15 +34,15 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    fn execute_block(&mut self, stmts: &Vec<Stmt>, enviroment: Enviroment
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, enviroment: Environment
         ) -> Result<(), RuntimeError> {
-        let prev = mem::replace(&mut self.enviroment, enviroment);
+        self.enviroment = enviroment;
 
         for stmt in stmts {
             self.execute(stmt)?;
         }
 
-        self.enviroment = prev;
+        self.enviroment = self.enviroment.enclosing;
         Ok(())
     }
 
@@ -88,7 +87,6 @@ impl ExprVisitor for Interpreter {
         let left: LitType = self.evaluate(&expr.left)?;
         let right: LitType = self.evaluate(&expr.right)?;
         let token_type = &expr.operator.token_type;
-
         let value = match (left, right) {
             (LitType::Num(left), LitType::Num(right)) => match token_type {
                 TokenType::Plus => LitType::Num(left + right),
@@ -176,7 +174,7 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_block_stmt(&mut self, stmt: &stmt::Block) -> Self::Output {
-        let enviroment = Enviroment::new(Some(self.enviroment.clone()));
+        let enviroment = Environment::new(Some(self.enviroment.clone()));
         self.execute_block(&stmt.stmts, enviroment)?;
         Ok(())
     }
@@ -192,8 +190,11 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_while_stmt(&mut self, stmt: &stmt::While) -> Self::Output {
-        let literal = self.evaluate(&stmt.condition)?;
-        while self.is_truthy(&literal) {
+        let mut condition_result;
+        while {
+            condition_result = self.evaluate(&stmt.condition)?; 
+            self.is_truthy(&condition_result)
+        } { 
             self.execute(&stmt.body)?;
         }
         Ok(())
@@ -216,6 +217,6 @@ impl Error for RuntimeError {}
 
 impl fmt::Display for RuntimeError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{}\n[line {}]", self.message, self.token.line, )
+        write!(f, "[line {}] {}", self.token.line, self.message)
     }
 }

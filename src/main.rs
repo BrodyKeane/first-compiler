@@ -17,7 +17,7 @@ mod token;
 mod ast;
 mod interpreter;
 mod error;
-mod enviroment;
+mod environment;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();

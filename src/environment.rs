@@ -6,14 +6,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub struct Enviroment {
+pub struct Environment {
     pub values: HashMap<String, LitType>,
-    enclosing: Box<Option<Enviroment>>,
+    enclosing: Box<Option<Environment>>,
 }
 
-impl Enviroment {
-    pub fn new(enclosing: Option<Enviroment>) -> Self {
-        Enviroment {
+impl Environment {
+    pub fn new(enclosing: Option<Environment>) -> Self {
+        Environment {
             values: HashMap::new(),
             enclosing: Box::new(enclosing),
         }
