@@ -47,19 +47,28 @@ impl<'a> Parser<'a> {
     }
 
     fn statement(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(TokenType::Print) {
-            return self.print_statement()
-        }
-        if self.match_token(TokenType::OpenBrace) {
-            return Ok(Stmt::new_block(self.block()?))
-        }
-        self.expr_stmt()
+        let stmt = match self.peek().token_type {
+            TokenType::If => self.if_stmt(),
+            TokenType::OpenBrace => Ok(Stmt::new_block(self.block()?)),
+            TokenType::Print => self.print_statement(),
+            _ => return self.expr_stmt(),
+        };
+        self.advance();
+        stmt
     }
 
-    fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
-        let expr = self.expression()?;
-        self.consume(TokenType::Semicolon, "Expect ';' after expression")?;
-        Ok(Stmt::new_stmt_expr(expr))
+    fn if_stmt(&mut self) -> Result<Stmt, ParseError> {
+        self.consume(TokenType::OpenParen, "Expect '(' after 'if'.");
+        let condition = self.expression()?;
+        self.consume(TokenType::CloseParen, "Expect ')' after 'if' condition.");
+
+        let body = self.statement()?;
+        
+        let mut else_body = None;
+        if self.match_token(TokenType::Else) {
+            else_body = Some(self.statement()?);
+        }
+        Ok(Stmt::new_if(condition, body, else_body))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
@@ -77,13 +86,18 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_print(value))
     }
 
+    fn expr_stmt(&mut self) -> Result<Stmt, ParseError> {
+        let expr = self.expression()?;
+        self.consume(TokenType::Semicolon, "Expect ';' after expression")?;
+        Ok(Stmt::new_stmt_expr(expr))
+    }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.assignment()
     }
 
     fn assignment(&mut self) -> Result<Expr, ParseError> {
-        let expr = self.equality()?;
+        let expr = self.or()?;
 
         if !self.match_token(TokenType::Equal) {
             return Ok(expr)
@@ -100,7 +114,27 @@ impl<'a> Parser<'a> {
         }
     }
 
-    
+    fn or(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.and()?;
+
+        while self.match_token(TokenType::Or) {
+            let operator = self.previous().clone();
+            let right = self.and()?;
+            expr = Expr::new_logical(expr, operator, right);
+        }
+        Ok(expr)
+    }
+
+    fn and(&mut self) -> Result<Expr, ParseError> {
+        let mut expr = self.equality()?;
+
+        while self.match_token(TokenType::And) {
+            let operator = self.previous().clone();
+            let right = self.equality()?;
+            expr = Expr::new_logical(expr, operator, right);
+        }
+        Ok(expr)
+    }
 
     fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
         let name = self

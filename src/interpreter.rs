@@ -47,9 +47,9 @@ impl Interpreter {
         Ok(())
     }
 
-    fn is_truthy(&self, value: LitType) -> bool {
+    fn is_truthy(&self, value: &LitType) -> bool {
         match value {
-            LitType::Bool(val) => val,
+            LitType::Bool(val) => val.to_owned(),
             LitType::None => false,
             _ => true
         }
@@ -78,7 +78,7 @@ impl ExprVisitor for Interpreter {
             (_, TokenType::Minus) => return Err(
                 RuntimeError::new(expr.operator.clone(), "Operand must be a number.")
             ),
-            (val, TokenType::Bang) => LitType::Bool(!self.is_truthy(val)),
+            (val, TokenType::Bang) => LitType::Bool(!self.is_truthy(&val)),
             _ => LitType::None,
         })
     }
@@ -134,6 +134,20 @@ impl ExprVisitor for Interpreter {
         self.enviroment.assign(expr.name.clone(), value.clone())?;
         Ok(value)
     }
+
+    fn visit_logical_expr(&mut self, expr: &expr::Logical) -> Self::Output {
+        let left = self.evaluate(&expr.left)?;
+        //tries to short circuit logical if result can be determined ealry
+        match expr.operator.token_type {
+            TokenType::Or => if self.is_truthy(&left) {
+                return Ok(left)
+            },
+            _ => if !self.is_truthy(&left) {
+                return Ok(left)
+            },
+        }
+        self.evaluate(&expr.right)
+    }
 }
 
 impl StmtVisitor for Interpreter {
@@ -164,6 +178,16 @@ impl StmtVisitor for Interpreter {
     fn visit_block_stmt(&mut self, stmt: &stmt::Block) -> Self::Output {
         let enviroment = Enviroment::new(Some(self.enviroment.clone()));
         self.execute_block(&stmt.stmts, enviroment)?;
+        Ok(())
+    }
+
+    fn visit_if_stmt(&mut self, stmt: &stmt::If) -> Self::Output {
+        let literal = self.evaluate(&stmt.condition)?;
+        if self.is_truthy(&literal) {
+            self.execute(&stmt.body)?;
+        } else if let Some(else_body) = &*stmt.else_body {
+            self.execute(else_body)?;
+        }
         Ok(())
     }
 }

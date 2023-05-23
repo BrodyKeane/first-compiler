@@ -15,11 +15,11 @@ pub trait StmtVisitor {
     fn visit_print_stmt(&mut self, stmt: &Print) -> Self::Output;
     fn visit_let_stmt(&mut self, stmt: &Let) -> Self::Output;
     fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
+    fn visit_if_stmt(&mut self, stmt: &If) -> Self::Output;
 //    fn visit_function_stmt(&mut self, stmt: &Function) -> Self::Output;
 //    fn visit_return_stmt(&mut self, stmt: &Return) -> Self::Output;
 //    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
 //    fn visit_while_stmt(&mut self, stmt: &While) -> Self::Output;
-//    fn visit_if_stmt(&mut self, stmt: &If) -> Self::Output;
 }
 
 pub enum Stmt{
@@ -27,6 +27,7 @@ pub enum Stmt{
     Print(Print),
     Let(Let),
     Block(Block),
+    If(If),
 }
 
 impl AcceptStmtVisitor for Stmt {
@@ -36,6 +37,7 @@ impl AcceptStmtVisitor for Stmt {
             Stmt::Print(stmt) => visitor.visit_print_stmt(stmt),
             Stmt::Let(stmt) => visitor.visit_let_stmt(stmt),
             Stmt::Block(stmt) => visitor.visit_block_stmt(stmt),
+            Stmt::If(stmt) => visitor.visit_if_stmt(stmt),
         }
     }
 }
@@ -56,6 +58,14 @@ impl Stmt {
     pub fn new_block(stmts: Vec<Stmt>) -> Self {
         Self::Block(Block{ stmts })
     }
+
+    pub fn new_if(condition: Expr, body: Stmt, else_body: Option<Stmt>) -> Self {
+        Self::If(If{
+            condition,
+            body: Box::new(body),
+            else_body: Box::new(else_body)
+        })
+    }
 }
 
 pub struct StmtExpr {
@@ -73,4 +83,10 @@ pub struct Let {
 
 pub struct Block {
     pub stmts: Vec<Stmt>
+}
+
+pub struct If {
+    pub condition: Expr,
+    pub body: Box<Stmt>,
+    pub else_body: Box<Option<Stmt>>,
 }
