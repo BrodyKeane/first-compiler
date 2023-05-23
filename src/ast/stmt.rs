@@ -14,7 +14,7 @@ pub trait StmtVisitor {
     fn visit_expression_stmt(&mut self, stmt: &StmtExpr) -> Self::Output;
     fn visit_print_stmt(&mut self, stmt: &Print) -> Self::Output;
     fn visit_let_stmt(&mut self, stmt: &Let) -> Self::Output;
-//    fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
+    fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
 //    fn visit_function_stmt(&mut self, stmt: &Function) -> Self::Output;
 //    fn visit_return_stmt(&mut self, stmt: &Return) -> Self::Output;
 //    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
@@ -26,6 +26,7 @@ pub enum Stmt{
     StmtExpr(StmtExpr),
     Print(Print),
     Let(Let),
+    Block(Block),
 }
 
 impl AcceptStmtVisitor for Stmt {
@@ -34,21 +35,26 @@ impl AcceptStmtVisitor for Stmt {
             Stmt::StmtExpr(stmt) => visitor.visit_expression_stmt(stmt),
             Stmt::Print(stmt) => visitor.visit_print_stmt(stmt),
             Stmt::Let(stmt) => visitor.visit_let_stmt(stmt),
+            Stmt::Block(stmt) => visitor.visit_block_stmt(stmt),
         }
     }
 }
 
 impl Stmt {
     pub fn new_stmt_expr(expr: Expr) -> Self {
-        Self::StmtExpr(StmtExpr{expr})
+        Self::StmtExpr(StmtExpr{ expr })
     }
 
     pub fn new_print(expr: Expr) -> Self {
-        Self::Print(Print{expr})
+        Self::Print(Print{ expr })
     }
 
     pub fn new_let(name: Token, initializer: Option<Expr>) -> Self {
-        Self::Let(Let{name, initializer})
+        Self::Let(Let{ name, initializer })
+    }
+
+    pub fn new_block(stmts: Vec<Stmt>) -> Self {
+        Self::Block(Block{ stmts })
     }
 }
 
@@ -63,4 +69,8 @@ pub struct Print {
 pub struct Let {
     pub name: Token,
     pub initializer: Option<Expr>,
+}
+
+pub struct Block {
+    pub stmts: Vec<Stmt>
 }

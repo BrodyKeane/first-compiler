@@ -5,17 +5,22 @@ use crate::{
     interpreter::RuntimeError,
 };
 
+#[derive(Debug, Clone)]
 pub struct Enviroment {
     pub values: HashMap<String, LitType>,
-    enclosing: Box<Option<Enviroment>>
+    enclosing: Box<Option<Enviroment>>,
 }
 
 impl Enviroment {
     pub fn new(enclosing: Option<Enviroment>) -> Self {
         Enviroment {
             values: HashMap::new(),
-            enclosing: Box::new(enclosing)
+            enclosing: Box::new(enclosing),
         }
+    }
+
+    pub fn define(&mut self, name: &String, value: LitType) {
+        self.values.insert(name.to_owned(), value);
     }
 
     //check innermost env for var else recursively check outer env 
@@ -32,10 +37,6 @@ impl Enviroment {
                 Err(RuntimeError::new(token.clone(), &message))
             }
         }
-    }
-
-    pub fn define(&mut self, name: &String, value: LitType) {
-        self.values.insert(name.to_owned(), value);
     }
 
     //check innermost env for var else recursively check outer env 

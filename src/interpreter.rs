@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt;
+use std::mem;
 
 use crate::{
     ast::{
@@ -32,6 +33,18 @@ impl Interpreter {
  
     fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
         stmt.accept(self)
+    }
+
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, enviroment: Enviroment
+        ) -> Result<(), RuntimeError> {
+        let prev = mem::replace(&mut self.enviroment, enviroment);
+
+        for stmt in stmts {
+            self.execute(stmt)?;
+        }
+
+        self.enviroment = prev;
+        Ok(())
     }
 
     fn is_truthy(&self, value: LitType) -> bool {
@@ -145,6 +158,12 @@ impl StmtVisitor for Interpreter {
             None => LitType::None,
         };
         self.enviroment.define(&stmt.name.lexeme, value);
+        Ok(())
+    }
+
+    fn visit_block_stmt(&mut self, stmt: &stmt::Block) -> Self::Output {
+        let enviroment = Enviroment::new(Some(self.enviroment.clone()));
+        self.execute_block(&stmt.stmts, enviroment)?;
         Ok(())
     }
 }
