@@ -11,7 +11,7 @@ use crate::{
     },
     token::{Token, Value, TokenType},
     environment::Environment,
-    native_functions,
+    native_functions::NativeDeclarations,
 };
 
 pub struct Interpreter {
@@ -22,7 +22,8 @@ pub struct Interpreter {
 impl Interpreter {
     pub fn new() -> Self {
         let mut globals = Environment::new_wrapped(None);
-        globals = native_functions::declare_natives(Arc::clone(&globals));
+        let mut native = NativeDeclarations::new(Arc::clone(&globals));
+        globals = native.declare_natives();
         let environment = Environment::new_wrapped(Some(Arc::clone(&globals)));
         Interpreter { globals, environment }
     }
@@ -161,7 +162,7 @@ impl ExprVisitor for Interpreter {
 
     fn visit_call_expr(&mut self, expr: &expr::Call) -> Self::Output {
         let callee = self.evaluate(&expr.callee)?;
-        let function = match callee.as_ref() {
+        let function = match *callee {
             Value::Callable(callee) => callee,
             _ => {
                 let message = "Can only call functions and classes.";
@@ -173,10 +174,10 @@ impl ExprVisitor for Interpreter {
         for arg in &expr.args {
             args.push(self.evaluate(&arg)?);
         }
-
-        if args.len() != function.arity {
+        
+        if args.len() != function.arity() {
             let message = format!("Expected {} arguments but got {}.",
-                                  function.arity, args.len());
+                                  function.arity(), args.len());
             return Err(RuntimeError::new(expr.paren.clone(), &message))
         }
         Ok(Rc::new(function.call(&self, args)))
