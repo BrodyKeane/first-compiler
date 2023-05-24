@@ -1,3 +1,5 @@
+use std::rc::Rc;
+
 use crate::{
     ast::expr::Expr,
     token::Token,
@@ -53,7 +55,7 @@ impl Stmt {
         Self::Print(Print{ expr })
     }
 
-    pub fn new_let(name: Token, initializer: Option<Expr>) -> Self {
+    pub fn new_let(name: Rc<Token>, initializer: Option<Expr>) -> Self {
         Self::Let(Let{ name, initializer })
     }
 
@@ -86,7 +88,7 @@ pub struct Print {
 }
 
 pub struct Let {
-    pub name: Token,
+    pub name: Rc<Token>,
     pub initializer: Option<Expr>,
 }
 

@@ -1,4 +1,7 @@
 use std::fmt;
+use std::rc::Rc;
+
+use crate::callable::Callable;
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType{
@@ -25,36 +28,38 @@ pub enum TokenType{
     Eof,
 }
 
-#[derive(Debug, Clone, PartialEq)]
-pub enum LitType {
+#[derive(Debug, PartialEq)]
+pub enum Value {
     String(String),
     Num(f64),
     Bool(bool),
+    Callable(Callable),
     None
 }
 
-impl fmt::Display for LitType {
+impl fmt::Display for Value {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            LitType::String(value) => write!(f, "{}", value),
-            LitType::Num(value) => write!(f, "{}", value),
-            LitType::Bool(value) => write!(f, "{}", value),
-            LitType::None => write!(f, "nil"),
+            Value::String(value) => write!(f, "{}", value),
+            Value::Num(value) => write!(f, "{}", value),
+            Value::Bool(value) => write!(f, "{}", value),
+            Value::Callable(value) => write!(f, "{}", value),
+            Value::None => write!(f, "nil"),
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub literal: LitType,
+    pub literal: Rc<Value>,
     pub line: usize,
 }
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String,
-        literal: LitType, line: usize) -> Token {
+        literal: Rc<Value>, line: usize) -> Token {
         Token {
             token_type,
             lexeme,

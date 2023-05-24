@@ -1,4 +1,6 @@
-use crate::token::{Token, LitType};
+use std::rc::Rc;
+
+use crate::token::{Token, Value};
 
 pub trait AcceptExprVisitor {
     fn accept<V: ExprVisitor>(&self, visitor: &mut V) -> V::Output;
@@ -14,7 +16,7 @@ pub trait ExprVisitor {
     fn visit_var_expr(&mut self, expr: &Var) -> Self::Output;
     fn visit_assign_expr(&mut self, expr: &Assign) -> Self::Output;
     fn visit_logical_expr(&mut self, expr: &Logical) -> Self::Output;
-//    fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
+    fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
 //    fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
 //    fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
@@ -29,7 +31,8 @@ pub enum Expr {
     Unary(Unary),
     Var(Var),
     Assign(Assign),
-    Logical(Logical)
+    Logical(Logical),
+    Call(Call),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -42,12 +45,13 @@ impl AcceptExprVisitor for Expr {
             Expr::Var(expr) => visitor.visit_var_expr(expr),
             Expr::Assign(expr) => visitor.visit_assign_expr(expr),
             Expr::Logical(expr) => visitor.visit_logical_expr(expr),
+            Expr::Call(expr) => visitor.visit_call_expr(expr),
         }
     }
 }
 
 impl Expr {
-    pub fn new_binary(left: Expr, operator: Token, right: Expr) -> Self {
+    pub fn new_binary(left: Expr, operator: Rc<Token>, right: Expr) -> Self {
         Expr::Binary(Binary {
             left: Box::new(left),
             operator,
@@ -61,42 +65,50 @@ impl Expr {
         })
     }
 
-    pub fn new_literal(value: LitType) -> Self {
+    pub fn new_literal(value: Rc<Value>) -> Self {
         Expr::Literal(Literal { value })
     }
 
-    pub fn new_unary(operator: Token, right: Expr) -> Self {
+    pub fn new_unary(operator: Rc<Token>, right: Expr) -> Self {
         Expr::Unary(Unary {
             operator,
             right: Box::new(right),
         })
     }
 
-    pub fn new_var(name: Token) -> Self {
+    pub fn new_var(name: Rc<Token>) -> Self {
         Expr::Var(Var{
             name
         })
     }
 
-    pub fn new_assign(name: Token, value: Expr) -> Self {
+    pub fn new_assign(name: Rc<Token>, value: Expr) -> Self {
         Expr::Assign(Assign {
             name,
             value: Box::new(value),
         })
     }
 
-    pub fn new_logical(left: Expr, operator: Token, right: Expr) -> Self {
+    pub fn new_logical(left: Expr, operator: Rc<Token>, right: Expr) -> Self {
         Expr::Logical(Logical{
             left: Box::new(left),
             operator,
             right: Box::new(right),
         })
     }
+
+    pub fn new_call(callee: Expr, paren: Rc<Token>, args: Vec<Expr>) -> Self {
+        Expr::Call(Call{
+            callee: Box::new(callee),
+            paren,
+            args,
+        })
+    }
 }
 
 pub struct Binary {
   pub left: Box<Expr>,
-  pub operator: Token,
+  pub operator: Rc<Token>,
   pub right: Box<Expr>,
 }
 
@@ -105,25 +117,31 @@ pub struct Grouping {
 }
 
 pub struct Literal {
-    pub value: LitType,
+    pub value: Rc<Value>,
 }
 
 pub struct Unary {
-    pub operator: Token,
+    pub operator: Rc<Token>,
     pub right: Box<Expr>,
 }
 
 pub struct Var {
-    pub name: Token,
+    pub name: Rc<Token>,
 }
 
 pub struct Assign {
-    pub name: Token,
+    pub name: Rc<Token>,
     pub value: Box<Expr>,
 }
 
 pub struct Logical {
   pub left: Box<Expr>,
-  pub operator: Token,
+  pub operator: Rc<Token>,
   pub right: Box<Expr>,
+}
+
+pub struct Call {
+    pub callee: Box<Expr>,
+    pub paren: Rc<Token>,
+    pub args: Vec<Expr>
 }

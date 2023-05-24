@@ -1,23 +1,30 @@
 use std::error::Error;
 use std::fmt;
-use std::mem;
+use std::ops::Deref;
+use std::rc::Rc;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     ast::{
         expr::{self, Expr, AcceptExprVisitor, ExprVisitor},
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
-    token::{Token, LitType, TokenType},
+    token::{Token, Value, TokenType},
     environment::Environment,
+    native_functions,
 };
 
 pub struct Interpreter {
-    enviroment: Environment,
+    globals: Arc<Mutex<Environment>>,
+    environment: Arc<Mutex<Environment>>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-       Interpreter { enviroment: Environment::new(None) }
+        let mut globals = Environment::new_wrapped(None);
+        globals = native_functions::declare_natives(Arc::clone(&globals));
+        let environment = Environment::new_wrapped(Some(Arc::clone(&globals)));
+        Interpreter { globals, environment }
     }
 
     pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError>{
@@ -27,7 +34,7 @@ impl Interpreter {
         Ok(())
     }
 
-    fn evaluate(&mut self, expr: &Expr) -> Result<LitType, RuntimeError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Rc<Value>, RuntimeError> {
         expr.accept(self)
     }
  
@@ -36,25 +43,26 @@ impl Interpreter {
     }
 
     fn execute_block(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError> {
-        self.enviroment = Environment::new(Some(self.enviroment.clone()));
+        let prev = Arc::clone(&self.environment);
+        self.environment = Environment::new_wrapped(Some(Arc::clone(&prev)));
         for stmt in stmts {
             self.execute(stmt)?;
         }
-        self.enviroment = Environment::new(*self.enviroment.enclosing.clone());
+        self.environment = prev;
         Ok(())
     }
 
-    fn is_truthy(&self, value: &LitType) -> bool {
+    fn is_truthy(&self, value: &Value) -> bool {
         match value {
-            LitType::Bool(val) => val.to_owned(),
-            LitType::None => false,
+            Value::Bool(val) => val.to_owned(),
+            Value::None => false,
             _ => true
         }
     }
 }
 
 impl ExprVisitor for Interpreter {
-    type Output = Result<LitType, RuntimeError>;
+    type Output = Result<Rc<Value>, RuntimeError>;
 
     fn visit_literal_expr(&mut self, expr: &expr::Literal
         ) -> Self::Output {
@@ -68,41 +76,44 @@ impl ExprVisitor for Interpreter {
 
     fn visit_unary_expr(&mut self, expr: &expr::Unary
         ) -> Self::Output {
-        let output: LitType = self.evaluate(&expr.right)?;
+        let binding = self.evaluate(&expr.right)?;
+        let output = binding.deref();
         let token_type = &expr.operator.token_type;
-        Ok(match (output, token_type) {
-            (LitType::Num(val), TokenType::Minus) => LitType::Num(-val),
+        Ok(Rc::new( match (output, token_type) {
+            (Value::Num(val), TokenType::Minus) => Value::Num(-val),
             (_, TokenType::Minus) => return Err(
                 RuntimeError::new(expr.operator.clone(), "Operand must be a number.")
             ),
-            (val, TokenType::Bang) => LitType::Bool(!self.is_truthy(&val)),
-            _ => LitType::None,
-        })
+            (val, TokenType::Bang) => Value::Bool(!self.is_truthy(&val)),
+            _ => Value::None,
+        }))
     }
 
     fn visit_binary_expr(&mut self, expr: &expr::Binary
         ) -> Self::Output {
-        let left: LitType = self.evaluate(&expr.left)?;
-        let right: LitType = self.evaluate(&expr.right)?;
+        let binding = self.evaluate(&expr.left)?;
+        let left = binding.deref();
+        let binding = self.evaluate(&expr.right)?;
+        let right = binding.deref();
         let token_type = &expr.operator.token_type;
         let value = match (left, right) {
-            (LitType::Num(left), LitType::Num(right)) => match token_type {
-                TokenType::Plus => LitType::Num(left + right),
-                TokenType::Minus => LitType::Num(left - right),
-                TokenType::Star => LitType::Num(left * right),
-                TokenType::Slash => LitType::Num(left / right),
-                TokenType::Greater => LitType::Bool(left > right),
-                TokenType::GreaterEqual => LitType::Bool(left >= right),
-                TokenType::Less => LitType::Bool(left < right),
-                TokenType::LessEqual => LitType::Bool(left <= right),
+            (Value::Num(left), Value::Num(right)) => match token_type {
+                TokenType::Plus => Value::Num(left + right),
+                TokenType::Minus => Value::Num(left - right),
+                TokenType::Star => Value::Num(left * right),
+                TokenType::Slash => Value::Num(left / right),
+                TokenType::Greater => Value::Bool(left > right),
+                TokenType::GreaterEqual => Value::Bool(left >= right),
+                TokenType::Less => Value::Bool(left < right),
+                TokenType::LessEqual => Value::Bool(left <= right),
                 _ => return Err(RuntimeError::new(
                     expr.operator.clone(),
                     "Operator cannot be used on numbers"
                 )),
             },
 
-            (LitType::String(left), LitType::String(right)) => match token_type {
-                TokenType::Plus => LitType::String(left + &right),
+            (Value::String(left), Value::String(right)) => match token_type {
+                TokenType::Plus => Value::String(left.to_string() + right),
                 _ => return Err(RuntimeError::new(
                     expr.operator.clone(),
                     "Operator cannot be used on strings"
@@ -110,24 +121,27 @@ impl ExprVisitor for Interpreter {
             },
 
             (left, right) => match token_type {
-                TokenType::EqualEqual => LitType::Bool(left == right),
-                TokenType::BangEqual => LitType::Bool(left != right),
+                TokenType::EqualEqual => Value::Bool(left == right),
+                TokenType::BangEqual => Value::Bool(left != right),
                 _ => return Err(RuntimeError::new(
                     expr.operator.clone(),
                     "Operator cannot be used on values of this type"
                 ))
             }
         };
-        Ok(value)
+        Ok(Rc::new(value))
     }
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
-        self.enviroment.get(&expr.name).cloned()
+        Ok(self.environment.lock().unwrap().get(expr.name.clone())?)
     }
 
     fn visit_assign_expr(&mut self, expr: &expr::Assign) -> Self::Output {
-        let value: LitType = self.evaluate(&expr.value)?;
-        self.enviroment.assign(expr.name.clone(), value.clone())?;
+        let value = self.evaluate(&expr.value)?;
+        self.environment
+            .lock()
+            .unwrap()
+            .assign(expr.name.clone(), value.clone())?;
         Ok(value)
     }
 
@@ -143,6 +157,29 @@ impl ExprVisitor for Interpreter {
             },
         }
         self.evaluate(&expr.right)
+    }
+
+    fn visit_call_expr(&mut self, expr: &expr::Call) -> Self::Output {
+        let callee = self.evaluate(&expr.callee)?;
+        let function = match callee.as_ref() {
+            Value::Callable(callee) => callee,
+            _ => {
+                let message = "Can only call functions and classes.";
+                return Err(RuntimeError::new(expr.paren.clone(), message))
+            }
+        };
+
+        let mut args = vec!();
+        for arg in &expr.args {
+            args.push(self.evaluate(&arg)?);
+        }
+
+        if args.len() != function.arity {
+            let message = format!("Expected {} arguments but got {}.",
+                                  function.arity, args.len());
+            return Err(RuntimeError::new(expr.paren.clone(), &message))
+        }
+        Ok(Rc::new(function.call(&self, args)))
     }
 }
 
@@ -165,9 +202,12 @@ impl StmtVisitor for Interpreter {
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
         let value = match &stmt.initializer {
             Some(expr) => self.evaluate(expr)?,
-            None => LitType::None,
+            None => Rc::new(Value::None),
         };
-        self.enviroment.define(&stmt.name.lexeme, value);
+        self.environment
+            .lock()
+            .unwrap()
+            .define(stmt.name.lexeme.clone(), value);
         Ok(())
     }
 
@@ -200,12 +240,12 @@ impl StmtVisitor for Interpreter {
 
 #[derive(Debug)]
 pub struct RuntimeError {
-    token: Token,
+    token: Rc<Token>,
     message: String,
 }
 
 impl RuntimeError {
-    pub fn new(token: Token, message: &str) -> Self {
+    pub fn new(token: Rc<Token>, message: &str) -> Self {
         RuntimeError { token, message: message.to_string() }
     }
 }

@@ -1,14 +1,15 @@
 use std::error::Error;
 use std::fmt;
+use std::rc::Rc;
 
 use crate::{
-    token::{Token, TokenType, LitType},
+    token::{Token, TokenType, Value},
     error::ErrorStatus,
 };
 
 pub struct Scanner<'a> {
     source: String,
-    tokens: Vec<Token>,
+    tokens: Vec<Rc<Token>>,
     start: usize,
     current: usize,
     line: usize,
@@ -27,7 +28,7 @@ impl<'a> Scanner<'a> {
         }
     }
 
-    pub fn scan_tokens(&mut self) -> Vec<Token> {
+    pub fn scan_tokens(&mut self) -> Vec<Rc<Token>> {
         while !(self.is_at_end()) {
             self.start = self.current;
             if let Err(error) = self.scan_token() {
@@ -35,15 +36,16 @@ impl<'a> Scanner<'a> {
             }
         }
 
-        let end_token = Token::new(
+        let end_token = Rc::new(Token::new(
             TokenType::Eof,
             String::new(),
-            LitType::None,
+            Rc::new(Value::None),
             self.line
-        );
+        ));
 
         self.tokens.push(end_token);
-        self.tokens.clone()
+
+        std::mem::replace(&mut self.tokens, vec!())
     }
 
     fn scan_token(&mut self) -> Result<(), ScanError>{
@@ -111,7 +113,7 @@ impl<'a> Scanner<'a> {
 
         self.add_literal_token(
             TokenType::String,
-            LitType::String(value)
+            Rc::new(Value::String(value))
         );
         Ok(())
     }
@@ -133,7 +135,7 @@ impl<'a> Scanner<'a> {
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,
-                LitType::Num(n)
+                Rc::new(Value::Num(n))
             ),
             Err(_) => return Err(
                 ScanError::new(self.line, "Failed to parse number.")
@@ -177,23 +179,23 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, LitType::None)
+        self.push_token(token_type, Rc::new(Value::None))
     }
 
     fn add_literal_token(
-        &mut self, token_type: TokenType, literal: LitType) {
-       self.push_token(token_type, literal) 
+        &mut self, token_type: TokenType, literal: Rc<Value>) {
+        self.push_token(token_type, literal) 
     }
 
     fn push_token(
-        &mut self, token_type: TokenType, literal: LitType) {
+        &mut self, token_type: TokenType, literal: Rc<Value>) {
         let text = self.source[self.start..self.current].to_string();
-        let token = Token::new(
+        let token = Rc::new(Token::new(
             token_type,
             text,
             literal,
             self.line,
-        );
+        ));
         self.tokens.push(token);
     }
 
