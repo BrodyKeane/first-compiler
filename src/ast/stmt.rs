@@ -19,7 +19,7 @@ pub trait StmtVisitor {
     fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
     fn visit_if_stmt(&mut self, stmt: &If) -> Self::Output;
     fn visit_while_stmt(&mut self, stmt: &While) -> Self::Output;
-//    fn visit_function_stmt(&mut self, stmt: &Function) -> Self::Output;
+    fn visit_func_stmt(&mut self, stmt: &Func) -> Self::Output;
 //    fn visit_return_stmt(&mut self, stmt: &Return) -> Self::Output;
 //    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
 }
@@ -31,6 +31,7 @@ pub enum Stmt{
     Block(Block),
     If(If),
     While(While),
+    Func(Func),
 }
 
 impl AcceptStmtVisitor for Stmt {
@@ -42,6 +43,7 @@ impl AcceptStmtVisitor for Stmt {
             Stmt::Block(stmt) => visitor.visit_block_stmt(stmt),
             Stmt::If(stmt) => visitor.visit_if_stmt(stmt),
             Stmt::While(stmt) => visitor.visit_while_stmt(stmt),
+            Stmt::Func(stmt) => visitor.visit_func_stmt(stmt),
         }
     }
 }
@@ -77,6 +79,10 @@ impl Stmt {
             body: Box::new(body),
         })
     }
+
+    pub fn new_func(name: Rc<Token>, params: Vec<Rc<Token>>, body: Vec<Stmt>) -> Self {
+        Self::Func(Func { name, params, body })
+    }
 }
 
 pub struct StmtExpr {
@@ -105,4 +111,10 @@ pub struct If {
 pub struct While {
     pub condition: Expr,
     pub body: Box<Stmt>,
+}
+
+pub struct Func {
+    name: Rc<Token>,
+    params: Vec<Rc<Token>>,
+    body: Vec<Stmt>,
 }

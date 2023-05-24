@@ -42,10 +42,11 @@ impl<'a> Parser<'a> {
     }
 
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
-        if self.match_token(TokenType::Let) {
-            return self.let_declaration();
+        match self.peek().token_type {
+            TokenType::Fn => {self.advance(); self.func_declaration("function")},
+            TokenType::Let => {self.advance(); self.let_declaration()},
+            _ => self.stmt(),
         }
-        self.stmt()
     }
 
     fn stmt(&mut self) -> Result<Stmt, ParseError> {
@@ -145,6 +146,44 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_stmt_expr(expr))
     }
 
+    fn func_declaration(&mut self, kind: &str) -> Result<Stmt, ParseError> {
+        let message = format!("Expect {} name.", kind);
+        let name = self.consume(TokenType::Identifier, &message)?;
+        let mut params = vec!();
+        if self.check(TokenType::CloseParen) {
+            self.consume(TokenType::CloseParen, "Expected '()' found '('.");
+        }
+        loop {
+            if params.len() >= 255 {
+                return Err(ParseError::new(self.peek(), "Can't have more than 255 parameters."))
+            }
+            params.push(self.consume(TokenType::Identifier, "Expect parameter name.")?);
+            if !self.match_token(TokenType::Comma) {
+                break
+            }
+        }
+        self.consume(TokenType::CloseParen, "Expect ')' after parameters.");
+
+        let message = format!("Expect '{{' before {} body", kind);
+        self.consume(TokenType::OpenBrace, &message);
+        let body = self.block()?;
+        Ok(Stmt::new_func(name, params, body))
+    }
+
+    fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let name = self
+            .consume(TokenType::Identifier, "Expect variable name.")?;
+
+        let mut initializer = None;
+        if self.match_token(TokenType::Equal) {
+            initializer = Some(self.expression()?);
+        }
+
+        self.consume(TokenType::Semicolon, 
+                     "Expect ';' after variable declaration.")?;
+        Ok(Stmt::new_let(name, initializer))
+    }
+
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.assignment()
     }
@@ -188,21 +227,6 @@ impl<'a> Parser<'a> {
         }
         Ok(expr)
     }
-
-    fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = self
-            .consume(TokenType::Identifier, "Expect variable name.")?;
-
-        let mut initializer = None;
-        if self.match_token(TokenType::Equal) {
-            initializer = Some(self.expression()?);
-        }
-
-        self.consume(TokenType::Semicolon, 
-                     "Expect ';' after variable declaration.")?;
-        Ok(Stmt::new_let(name, initializer))
-    }
-
 
     fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr: Expr = self.comparison()?;
