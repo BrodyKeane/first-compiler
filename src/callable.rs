@@ -2,25 +2,26 @@ use std::{fmt, rc::Rc};
 
 use crate::{
     token::Value,
-    interpreter::Interpreter,
-    ast::stmt::Stmt,
+    interpreter::{Interpreter, RuntimeError},
+    ast::stmt::Func,
+    environment::Environment,
 };
 
 pub trait Call {
-    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>) -> Value;
+    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+        ) -> Result<Value, RuntimeError>;
     fn arity(&self) -> usize;
 }
 
 pub enum Callable {
     NativeFn(NativeFn),
-    //Func(Func),
+    LaxFn(LaxFn),
 }
 
 impl Callable {
     pub fn new_native_fn(func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>) -> Value>, arity: usize) -> Self {
         Callable::NativeFn(NativeFn { func, arity })
     }
-
 }
 
 pub struct NativeFn {
@@ -29,8 +30,9 @@ pub struct NativeFn {
 }
 
 impl Call for NativeFn {
-    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>) -> Value {
-        (self.func)(interpreter, args)
+    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+        ) -> Result<Value, RuntimeError> {
+        Ok((self.func)(interpreter, args))
     }
 
     fn arity(&self) -> usize {
@@ -38,8 +40,27 @@ impl Call for NativeFn {
     }
 }
 
-pub struct Func {
-    declaration: Stmt
+pub struct LaxFn {
+    declaration: Func,
+    arity: usize,
+}
+
+impl Call for LaxFn {
+    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+        ) -> Result<Value, RuntimeError> {
+        let env = Environment::new_wrapped(Some(interpreter.globals));
+        let params = self.declaration.params;
+        for (i, param) in params.iter().enumerate() {
+            let arg = args.get(i).unwrap().clone();
+            env.lock().unwrap().define(param.lexeme, arg);
+        }
+        interpreter.execute_block(&self.declaration.body, env)?;
+        Ok(Value::None)
+    }
+
+    fn arity(&self) -> usize {
+        self.arity
+    }
 }
 
 impl PartialEq for Callable {
@@ -62,12 +83,12 @@ impl fmt::Debug for Callable {
 }
 
 impl std::ops::Deref for Callable {
-    type Target = dyn Call; // Define the associated Target type as the type you want to unwrap to
+    type Target = dyn Call;
 
     fn deref(&self) -> &Self::Target {
         match self {
             Callable::NativeFn(func) => func,
-            //Callable::Func(func) => func,
+            Callable::LaxFn(func) => func,
         }
     }
 }

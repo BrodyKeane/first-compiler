@@ -114,7 +114,7 @@ pub struct While {
 }
 
 pub struct Func {
-    name: Rc<Token>,
-    params: Vec<Rc<Token>>,
-    body: Vec<Stmt>,
+    pub name: Rc<Token>,
+    pub params: Vec<Rc<Token>>,
+    pub body: Vec<Stmt>,
 }

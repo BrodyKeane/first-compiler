@@ -43,10 +43,9 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(&mut self, stmts: &Vec<Stmt>, env: Arc<Mutex<Environment>>
-        ) -> Result<(), RuntimeError> {
+    fn execute_block(&mut self, stmts: &Vec<Stmt>, env: Arc<Mutex<Environment>>) -> Result<(), RuntimeError> {
         let prev = Arc::clone(&self.environment);
-        self.environment = env;
+        self.environment = ;
         for stmt in stmts {
             self.execute(stmt)?;
         }
