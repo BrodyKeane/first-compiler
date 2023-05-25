@@ -249,9 +249,11 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
-        let func = Rc::new(Value::Callable(Callable::new_lax_fn(stmt.clone())));
         let name = stmt.name.lexeme.clone();
-        self.globals.lock().unwrap().define(name, func);
+        let env = Arc::clone(&self.environment);
+        let func = Callable::new_lax_fn(stmt.clone(), env);
+        let callable = Rc::new(Value::Callable(func));
+        self.globals.lock().unwrap().define(name, callable);
         Ok(None)
     }
     

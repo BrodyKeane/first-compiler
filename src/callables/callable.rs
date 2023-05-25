@@ -1,13 +1,15 @@
 use std::{fmt, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 use crate::{
-    token::Value,
     interpreter::{Interpreter, RuntimeError},
+    environment::Environment,
     ast::stmt::Func,
+    token::Value,
     callables::{
         native_functions::NativeFn,
         lax_functions::LaxFn,
-    },
+    }
 };
  
 pub trait Call {
@@ -26,8 +28,8 @@ impl Callable {
         Callable::NativeFn(NativeFn { func, arity })
     }
 
-    pub fn new_lax_fn(declaration: Func) -> Self {
-        Callable::LaxFn(LaxFn { declaration })
+    pub fn new_lax_fn(declaration: Func, closure: Arc<Mutex<Environment>>) -> Self {
+        Callable::LaxFn(LaxFn { declaration, closure })
     }
 }
 

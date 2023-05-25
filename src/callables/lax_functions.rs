@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::sync::Arc;
+use std::sync::{Arc, Mutex};
 
 use crate::{
     interpreter::{Interpreter, RuntimeError},
@@ -11,12 +11,13 @@ use crate::{
 
 pub struct LaxFn {
     pub declaration: Func,
+    pub closure: Arc<Mutex<Environment>>,
 }
 
 impl Call for LaxFn {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
         ) -> Result<Rc<Value>, RuntimeError> {
-        let env = Environment::new_wrapped(Some(Arc::clone(&interpreter.globals)));
+        let env = Environment::new_wrapped(Some(Arc::clone(&self.closure)));
         let params = &self.declaration.params;
         for (i, param) in params.iter().enumerate() {
             let arg = args.get(i).unwrap().clone();
