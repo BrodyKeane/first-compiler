@@ -1,0 +1,11 @@
+fn is_one(num) {
+  if (num == 1) {
+    return true;
+  }
+  return false;
+}
+
+print "1 == 1:";
+print is_one(1);
+print "2 == 1:";
+print is_one(2);

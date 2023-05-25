@@ -20,8 +20,8 @@ pub struct NativeFn {
 
 impl Call for NativeFn {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
-        ) -> Result<Value, RuntimeError> {
-        Ok((self.func)(interpreter, args))
+        ) -> Result<Rc<Value>, RuntimeError> {
+        Ok(Rc::new((self.func)(interpreter, args)))
     }
 
     fn arity(&self) -> usize {

@@ -40,19 +40,21 @@ impl Interpreter {
         expr.accept(self)
     }
  
-    fn execute(&mut self, stmt: &Stmt) -> Result<(), RuntimeError> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<Option<Rc<Value>>, RuntimeError> {
         stmt.accept(self)
     }
 
     pub fn execute_block(&mut self, stmts: &Vec<Stmt>, env: Arc<Mutex<Environment>>
-        ) -> Result<(), RuntimeError> {
-        let prev = Arc::clone(&self.environment);
-        self.environment = env;
+        ) -> Result<Option<Rc<Value>>, RuntimeError> {
+        let prev = std::mem::replace(&mut self.environment, env);
         for stmt in stmts {
-            self.execute(stmt)?;
+            if let Some(val) = self.execute(stmt)? {
+                self.environment = prev;
+                return Ok(Some(val))
+            }
         }
         self.environment = prev;
-        Ok(())
+        Ok(None)
     }
 
     fn is_truthy(&self, value: &Value) -> bool {
@@ -87,7 +89,7 @@ impl ExprVisitor for Interpreter {
             (_, TokenType::Minus) => return Err(
                 RuntimeError::new(expr.operator.clone(), "Operand must be a number.")
             ),
-            (val, TokenType::Bang) => Value::Bool(!self.is_truthy(&val)),
+            (val, TokenType::Bang) => Value::Bool(!self.is_truthy(val)),
             _ => Value::None,
         }))
     }
@@ -109,6 +111,7 @@ impl ExprVisitor for Interpreter {
                 TokenType::GreaterEqual => Value::Bool(left >= right),
                 TokenType::Less => Value::Bool(left < right),
                 TokenType::LessEqual => Value::Bool(left <= right),
+                TokenType::EqualEqual => Value::Bool(left == right),
                 _ => return Err(RuntimeError::new(
                     expr.operator.clone(),
                     "Operator cannot be used on numbers"
@@ -117,6 +120,7 @@ impl ExprVisitor for Interpreter {
 
             (Value::String(left), Value::String(right)) => match token_type {
                 TokenType::Plus => Value::String(left.to_string() + right),
+                TokenType::EqualEqual => Value::Bool(left == right),
                 _ => return Err(RuntimeError::new(
                     expr.operator.clone(),
                     "Operator cannot be used on strings"
@@ -174,7 +178,7 @@ impl ExprVisitor for Interpreter {
 
         let mut args = vec!();
         for arg in &expr.args {
-            args.push(self.evaluate(&arg)?);
+            args.push(self.evaluate(arg)?);
         }
         
         if args.len() != function.arity() {
@@ -182,24 +186,24 @@ impl ExprVisitor for Interpreter {
                                   function.arity(), args.len());
             return Err(RuntimeError::new(expr.paren.clone(), &message))
         }
-        Ok(Rc::new(function.call(self, args)?))
+        Ok(function.call(self, args)?)
     }
 }
 
 impl StmtVisitor for Interpreter {
-    type Output = Result<(), RuntimeError>;
+    type Output = Result<Option<Rc<Value>>, RuntimeError>;
 
     fn visit_expression_stmt(&mut self, stmt: &stmt::StmtExpr
         ) -> Self::Output {
         self.evaluate(&stmt.expr)?;
-        Ok(())
+        Ok(None)
     }
 
     fn visit_print_stmt(&mut self, stmt: &stmt::Print
         ) -> Self::Output {
         let value = self.evaluate(&stmt.expr)?;
         println!("{}", value);
-        Ok(())
+        Ok(None)
     }
 
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
@@ -211,23 +215,24 @@ impl StmtVisitor for Interpreter {
             .lock()
             .unwrap()
             .define(stmt.name.lexeme.clone(), value);
-        Ok(())
+        Ok(None)
     }
 
     fn visit_block_stmt(&mut self, stmt: &stmt::Block) -> Self::Output {
         let env = Environment::new_wrapped(Some(Arc::clone(&self.environment)));
-        self.execute_block(&stmt.stmts, env)?;
-        Ok(())
+        let value = self.execute_block(&stmt.stmts, env)?;
+        Ok(value)
     }
 
     fn visit_if_stmt(&mut self, stmt: &stmt::If) -> Self::Output {
         let literal = self.evaluate(&stmt.condition)?;
         if self.is_truthy(&literal) {
-            self.execute(&stmt.body)?;
+            self.execute(&stmt.body)
         } else if let Some(else_body) = &*stmt.else_body {
-            self.execute(else_body)?;
+            self.execute(else_body)
+        } else {
+            Ok(None)
         }
-        Ok(())
     }
 
     fn visit_while_stmt(&mut self, stmt: &stmt::While) -> Self::Output {
@@ -236,16 +241,23 @@ impl StmtVisitor for Interpreter {
             condition_result = self.evaluate(&stmt.condition)?; 
             self.is_truthy(&condition_result)
         } { 
-            self.execute(&stmt.body)?;
+            if let Some(val) = self.execute(&stmt.body)? {
+                return Ok(Some(val))
+            }
         }
-        Ok(())
+        Ok(None)
     }
 
     fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
         let func = Rc::new(Value::Callable(Callable::new_lax_fn(stmt.clone())));
         let name = stmt.name.lexeme.clone();
-        self.environment.lock().unwrap().define(name, func);
-        return Ok(())
+        self.globals.lock().unwrap().define(name, func);
+        Ok(None)
+    }
+    
+    fn visit_return_stmt(&mut self, stmt: &stmt::Return) -> Self::Output {
+        let value = self.evaluate(&stmt.value)?;
+        Ok(Some(value))
     }
 }
 

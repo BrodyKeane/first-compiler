@@ -15,15 +15,18 @@ pub struct LaxFn {
 
 impl Call for LaxFn {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
-        ) -> Result<Value, RuntimeError> {
+        ) -> Result<Rc<Value>, RuntimeError> {
         let env = Environment::new_wrapped(Some(Arc::clone(&interpreter.globals)));
         let params = &self.declaration.params;
         for (i, param) in params.iter().enumerate() {
             let arg = args.get(i).unwrap().clone();
             env.lock().unwrap().define(param.lexeme.clone(), arg);
         }
-        interpreter.execute_block(&self.declaration.body, env)?;
-        Ok(Value::None)
+        let output = interpreter.execute_block(&self.declaration.body, env)?;
+        match output {
+            Some(val) => Ok(val),
+            None => Ok(Rc::new(Value::None)),
+        }
     }
 
     fn arity(&self) -> usize {

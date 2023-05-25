@@ -65,20 +65,20 @@ impl<'a> Scanner<'a> {
                 "=" => TokenType::BangEqual,
                 _ => TokenType::Bang,
             }),
-            "=" => self.add_token(match self.peek() {
-                "=" => TokenType::EqualEqual,
-                _ => TokenType::Equal,
-            }),           
-            ">" => self.add_token(match self.peek() {
-                "=" => TokenType::GreaterEqual,
-                _ => TokenType::Greater,
-            }),
-            "<" => self.add_token(match self.peek() {
-                "=" => TokenType::LessEqual,
-                _ => TokenType::Less,
-            }),
+            "=" => match self.peek() {
+                "=" => {self.advance(); self.add_token(TokenType::EqualEqual);},
+                _ => self.add_token(TokenType::Equal),
+            },           
+            ">" => match self.peek() {
+                "=" => {self.advance(); self.add_token(TokenType::GreaterEqual)},
+                _ => self.add_token(TokenType::Greater),
+            },
+            "<" => match self.peek() {
+                "=" => {self.advance(); self.add_token(TokenType::LessEqual)},
+                _ => self.add_token(TokenType::Less),
+            },
             "/" => match self.peek() {
-                "/" => self.skip_comment(),
+                "/" => {self.advance(); self.skip_comment()},
                 _ => self.add_token(TokenType::Slash),
             },
 

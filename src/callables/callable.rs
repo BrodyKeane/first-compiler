@@ -12,7 +12,7 @@ use crate::{
  
 pub trait Call {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
-        ) -> Result<Value, RuntimeError>;
+        ) -> Result<Rc<Value>, RuntimeError>;
     fn arity(&self) -> usize;
 }
 

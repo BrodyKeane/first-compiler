@@ -55,6 +55,7 @@ impl<'a> Parser<'a> {
             TokenType::Print => {self.advance(); self.print_stmt()},
             TokenType::While => {self.advance(); self.while_stmt()},
             TokenType::For => {self.advance(); self.for_stmt()},
+            TokenType::Return => {self.advance(); self.return_stmt()},
             TokenType::OpenBrace => {
                 self.advance(); Ok(Stmt::new_block(self.block()?))
             },
@@ -128,6 +129,16 @@ impl<'a> Parser<'a> {
             body = Stmt::new_block(vec!(initializer, body));
         }
         Ok(body)
+    }
+
+    fn return_stmt(&mut self) -> Result<Stmt, ParseError> {
+        let keyword = self.previous();
+        let value = match self.match_token(TokenType::Semicolon) {
+            true => Expr::new_literal(Rc::new(Value::None)),
+            false => self.expression()?,
+        };
+        self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
+        Ok(Stmt::new_return(keyword, value))
     }
 
     fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
