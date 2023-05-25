@@ -2,9 +2,10 @@ use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    interpreter::{Interpreter, RuntimeError},
-    callables::Call,
+    interpreter::Interpreter,
     environment::Environment,
+    error::RuntimeError,
+    callables::Call,
     ast::stmt::Func,
     token::Value,
 };

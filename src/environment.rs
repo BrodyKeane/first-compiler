@@ -4,7 +4,7 @@ use std::sync::{Arc, Mutex};
 
 use crate::{
     token::{Value, Token},
-    interpreter::RuntimeError,
+    error::RuntimeError,
 };
 
 #[derive(Debug)]

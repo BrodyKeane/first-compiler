@@ -1,10 +1,8 @@
-use std::error::Error;
-use std::fmt;
 use std::rc::Rc;
 
 use crate::{
     token::{Token, TokenType, Value},
-    error::ErrorStatus,
+    error::{ErrorStatus, ScanError},
 };
 
 pub struct Scanner<'a> {
@@ -240,25 +238,5 @@ impl<'a> Scanner<'a> {
 
     fn is_alpha_numeric(&self, c: &str) -> bool {
         self.is_alpha(c) || self.is_digit(c)
-    }
-}
-
-#[derive(Debug)]
-pub struct ScanError {
-    pub line: usize,
-    pub message: String,
-}
-
-impl ScanError {
-    pub fn new(line: usize, message: &str) -> Self {
-        ScanError { line, message: message.to_string() }
-    }
-}
-
-impl Error for ScanError {}
-
-impl fmt::Display for ScanError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[line {}] Error: {}", self.line, self.message)
     }
 }

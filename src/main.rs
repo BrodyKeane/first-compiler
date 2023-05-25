@@ -12,11 +12,11 @@ use error::ErrorStatus;
 use interpreter::Interpreter;
 use ast::parser::Parser;
 
+mod error;
 mod scanner;
 mod token;
 mod ast;
 mod interpreter;
-mod error;
 mod environment;
 mod callables;
 
@@ -83,7 +83,3 @@ impl Lax {
         }
     }
 }
-
-
-
-

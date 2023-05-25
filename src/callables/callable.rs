@@ -2,8 +2,9 @@ use std::{fmt, rc::Rc};
 use std::sync::{Arc, Mutex};
 
 use crate::{
-    interpreter::{Interpreter, RuntimeError},
+    interpreter::Interpreter,
     environment::Environment,
+    error::RuntimeError,
     ast::stmt::Func,
     token::Value,
     callables::{

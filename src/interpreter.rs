@@ -1,5 +1,3 @@
-use std::error::Error;
-use std::fmt;
 use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
@@ -11,8 +9,9 @@ use crate::{
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
     callables::native_functions::NativeDeclarations,
-    token::{Token, Value, TokenType},
+    token::{Value, TokenType},
     environment::Environment,
+    error::RuntimeError,
 };
 
 pub struct Interpreter {
@@ -263,22 +262,4 @@ impl StmtVisitor for Interpreter {
     }
 }
 
-#[derive(Debug)]
-pub struct RuntimeError {
-    token: Rc<Token>,
-    message: String,
-}
 
-impl RuntimeError {
-    pub fn new(token: Rc<Token>, message: &str) -> Self {
-        RuntimeError { token, message: message.to_string() }
-    }
-}
-
-impl Error for RuntimeError {}
-
-impl fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "[line {}] {}", self.token.line, self.message)
-    }
-}

@@ -3,9 +3,10 @@ use std::sync::{Arc, Mutex};
 use std::rc::Rc;
 
 use crate::{
-    interpreter::{Interpreter, RuntimeError},
+    interpreter::Interpreter,
     callables::{Callable, Call},
     environment::Environment,
+    error::RuntimeError,
     token::Value,
 };
 

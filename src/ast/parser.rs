@@ -1,10 +1,8 @@
-use std::error::Error;
-use std::fmt;
 use std::rc::Rc;
 
 use crate::{
     token::{Token, TokenType, Value},
-    error::ErrorStatus,
+    error::{ErrorStatus, ParseError},
     ast::{
         expr::Expr,
         stmt::Stmt,
@@ -436,31 +434,4 @@ impl<'a> Parser<'a> {
     }
 }
 
-#[derive(Debug)]
-pub struct ParseError {
-    pub token: Rc<Token>,
-    pub message: String,
-}
 
-impl ParseError {
-    fn new(token: Rc<Token>, message: &str) -> Self {
-       ParseError { token, message: message.to_string() }
-    }
-}
-
-impl Error for ParseError {}
-
-impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self.token.token_type == TokenType::Eof {
-            true => {
-                write!(f, "[line {}] Error at end: {}",
-                    self.token.line, self.message)
-            },
-            false => { 
-                write!(f, "[line {}] Error at '{}': {}",
-                    self.token.line, self.token.lexeme, self.message)
-            }
-        }
-    }
-}
