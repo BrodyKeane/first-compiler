@@ -18,8 +18,7 @@ mod ast;
 mod interpreter;
 mod error;
 mod environment;
-mod callable;
-mod native_functions;
+mod callables;
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();

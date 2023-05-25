@@ -9,9 +9,9 @@ use crate::{
         expr::{self, Expr, AcceptExprVisitor, ExprVisitor},
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
+    callables::native_functions::NativeDeclarations,
     token::{Token, Value, TokenType},
     environment::Environment,
-    native_functions::NativeDeclarations,
 };
 
 pub struct Interpreter {
@@ -181,7 +181,7 @@ impl ExprVisitor for Interpreter {
                                   function.arity(), args.len());
             return Err(RuntimeError::new(expr.paren.clone(), &message))
         }
-        Ok(Rc::new(function.call(&self, args)))
+        Ok(Rc::new(function.call(&self, args)?))
     }
 }
 

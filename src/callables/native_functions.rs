@@ -2,13 +2,31 @@ use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::rc::Rc;
 
-use crate::environment::Environment;
-use crate::interpreter::Interpreter;
-use crate::token::Value;
-use crate::callable::Callable;
+use crate::{
+    interpreter::{Interpreter, RuntimeError},
+    callables::{Callable, Call},
+    environment::Environment,
+    token::Value,
+};
 
 pub struct NativeDeclarations{
     globals: Arc<Mutex<Environment>>
+}
+
+pub struct NativeFn {
+    pub func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>) -> Value>,
+    pub arity: usize,
+}
+
+impl Call for NativeFn {
+    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+        ) -> Result<Value, RuntimeError> {
+        Ok((self.func)(interpreter, args))
+    }
+
+    fn arity(&self) -> usize {
+        self.arity
+    }
 }
 
 impl NativeDeclarations {
