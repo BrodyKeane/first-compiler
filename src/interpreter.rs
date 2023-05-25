@@ -4,6 +4,7 @@ use std::ops::Deref;
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 
+use crate::callables::Callable;
 use crate::{
     ast::{
         expr::{self, Expr, AcceptExprVisitor, ExprVisitor},
@@ -163,7 +164,7 @@ impl ExprVisitor for Interpreter {
 
     fn visit_call_expr(&mut self, expr: &expr::Call) -> Self::Output {
         let callee = self.evaluate(&expr.callee)?;
-        let function = match *callee {
+        let function = match callee.as_ref() {
             Value::Callable(callee) => callee,
             _ => {
                 let message = "Can only call functions and classes.";
@@ -181,7 +182,7 @@ impl ExprVisitor for Interpreter {
                                   function.arity(), args.len());
             return Err(RuntimeError::new(expr.paren.clone(), &message))
         }
-        Ok(Rc::new(function.call(&self, args)?))
+        Ok(Rc::new(function.call(self, args)?))
     }
 }
 
@@ -238,6 +239,13 @@ impl StmtVisitor for Interpreter {
             self.execute(&stmt.body)?;
         }
         Ok(())
+    }
+
+    fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
+        let func = Rc::new(Value::Callable(Callable::new_lax_fn(stmt.clone())));
+        let name = stmt.name.lexeme.clone();
+        self.environment.lock().unwrap().define(name, func);
+        return Ok(())
     }
 }
 

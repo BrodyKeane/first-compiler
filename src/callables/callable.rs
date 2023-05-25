@@ -11,7 +11,7 @@ use crate::{
 };
  
 pub trait Call {
-    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
         ) -> Result<Value, RuntimeError>;
     fn arity(&self) -> usize;
 }
@@ -31,18 +31,16 @@ impl Callable {
     }
 }
 
-
-
 impl PartialEq for Callable {
     fn eq(&self, other: &Self) -> bool {
         // Compare the wrapped function by comparing their addresses
-        std::ptr::eq(&*self, &*other)
+        std::ptr::eq(&self, &other)
     }
 }
 
 impl fmt::Display for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-         write!(f, "{}", self.to_string())
+         write!(f, "{:?}", self)
     }
 }
 

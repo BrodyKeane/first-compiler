@@ -45,7 +45,7 @@ impl<'a> Scanner<'a> {
 
         self.tokens.push(end_token);
 
-        std::mem::replace(&mut self.tokens, vec!())
+        std::mem::take(&mut self.tokens)
     }
 
     fn scan_token(&mut self) -> Result<(), ScanError>{
@@ -228,14 +228,14 @@ impl<'a> Scanner<'a> {
     }
 
     fn is_digit(&self, c: &str) -> bool {
-        (c >= "0") && (c <= "9")
+        ("0"..="9").contains(&c)
     }
 
 
     fn is_alpha(&self, c: &str) -> bool {
-        return  (c >= "a" && c <= "z") ||
-                (c >= "A" && c <= "Z") ||
-                c == "_"
+           ("a"..="z").contains(&c)
+        || ("A"..="Z").contains(&c)
+        || c == "_"
     }
 
     fn is_alpha_numeric(&self, c: &str) -> bool {

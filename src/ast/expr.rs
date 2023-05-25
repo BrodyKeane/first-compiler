@@ -24,6 +24,7 @@ pub trait ExprVisitor {
 }
 
 
+#[derive(Clone)]
 pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
@@ -106,40 +107,48 @@ impl Expr {
     }
 }
 
+#[derive(Clone)]
 pub struct Binary {
   pub left: Box<Expr>,
   pub operator: Rc<Token>,
   pub right: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Grouping {
     pub expr: Box<Expr>, 
 }
 
+#[derive(Clone)]
 pub struct Literal {
     pub value: Rc<Value>,
 }
 
+#[derive(Clone)]
 pub struct Unary {
     pub operator: Rc<Token>,
     pub right: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Var {
     pub name: Rc<Token>,
 }
 
+#[derive(Clone)]
 pub struct Assign {
     pub name: Rc<Token>,
     pub value: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Logical {
   pub left: Box<Expr>,
   pub operator: Rc<Token>,
   pub right: Box<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Call {
     pub callee: Box<Expr>,
     pub paren: Rc<Token>,

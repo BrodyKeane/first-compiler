@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::sync::Arc;
 
 use crate::{
     interpreter::{Interpreter, RuntimeError},
@@ -9,17 +10,17 @@ use crate::{
 };
 
 pub struct LaxFn {
-    declaration: Func,
+    pub declaration: Func,
 }
 
 impl Call for LaxFn {
-    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
         ) -> Result<Value, RuntimeError> {
-        let env = Environment::new_wrapped(Some(interpreter.globals));
-        let params = self.declaration.params;
+        let env = Environment::new_wrapped(Some(Arc::clone(&interpreter.globals)));
+        let params = &self.declaration.params;
         for (i, param) in params.iter().enumerate() {
             let arg = args.get(i).unwrap().clone();
-            env.lock().unwrap().define(param.lexeme, arg);
+            env.lock().unwrap().define(param.lexeme.clone(), arg);
         }
         interpreter.execute_block(&self.declaration.body, env)?;
         Ok(Value::None)

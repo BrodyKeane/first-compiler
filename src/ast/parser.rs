@@ -33,8 +33,8 @@ impl<'a> Parser<'a> {
             match self.declaration() {
                 Ok(stmt) => statements.push(stmt),
                 Err(error) => {
-                    self.synchronize();
                     self.status.report_compile_error(error);
+                    self.synchronize();
                 }
             }
         }
@@ -69,7 +69,6 @@ impl<'a> Parser<'a> {
                      "Expect ')' after 'if' condition.")?;
 
         let body = self.stmt()?;
-        
         let mut else_body = None;
         if self.match_token(TokenType::Else) {
             else_body = Some(self.stmt()?);
@@ -149,11 +148,10 @@ impl<'a> Parser<'a> {
     fn func_declaration(&mut self, kind: &str) -> Result<Stmt, ParseError> {
         let message = format!("Expect {} name.", kind);
         let name = self.consume(TokenType::Identifier, &message)?;
+        self.consume(TokenType::OpenParen, "Expect '(' after function name.")?;
+
         let mut params = vec!();
-        if self.check(TokenType::CloseParen) {
-            self.consume(TokenType::CloseParen, "Expected '()' found '('.");
-        }
-        loop {
+        while !self.check(TokenType::CloseParen) {
             if params.len() >= 255 {
                 return Err(ParseError::new(self.peek(), "Can't have more than 255 parameters."))
             }
@@ -162,10 +160,9 @@ impl<'a> Parser<'a> {
                 break
             }
         }
-        self.consume(TokenType::CloseParen, "Expect ')' after parameters.");
-
+        self.consume(TokenType::CloseParen, "Expect ')' after parameters.")?;
         let message = format!("Expect '{{' before {} body", kind);
-        self.consume(TokenType::OpenBrace, &message);
+        self.consume(TokenType::OpenBrace, &message)?;
         let body = self.block()?;
         Ok(Stmt::new_func(name, params, body))
     }
@@ -298,11 +295,8 @@ impl<'a> Parser<'a> {
 
     fn call(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.primary()?;
-        loop {
-            match self.match_token(TokenType::OpenParen) {
-                true => expr = self.finish_call(expr)?,
-                false => break,
-            } 
+        while self.match_token(TokenType::OpenParen) {
+            expr = self.finish_call(expr)?;
         }
         Ok(expr)
     }
@@ -328,7 +322,7 @@ impl<'a> Parser<'a> {
                 Expr::new_grouping(self.grouping()?),
 
             _ => return Err(
-                ParseError::new(self.peek(), "Expected expression.")
+                ParseError::new(self.previous(), "Expected expression.")
             ),
         };
         Ok(expr) 
@@ -336,16 +330,15 @@ impl<'a> Parser<'a> {
 
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
         let mut args = vec!();
-        if !self.check(TokenType::CloseParen) {
-            while self.match_token(TokenType::Comma) {
-                args.push(self.expression()?);
-                if args.len() <= 255 {
-                    continue
-                }
-                return Err(
-                    ParseError::new(self.peek(), 
-                                   "Can't have more than 255 arguments.")
+        while !self.check(TokenType::CloseParen) {
+            args.push(self.expression()?);
+            if args.len() > 255 {
+                return Err(ParseError::new(self.peek(), 
+                               "Can't have more than 255 arguments.")
                 )
+            }
+            if !self.match_token(TokenType::Comma) {
+                break
             }
         }
         let paren = self.consume(TokenType::CloseParen,
@@ -364,7 +357,7 @@ impl<'a> Parser<'a> {
     fn consume(&mut self, token_type: TokenType, message: &str
         ) -> Result<Rc<Token>, ParseError> {
         match self.check(token_type) {
-            true => Ok(self.advance()),
+            true =>  Ok(self.advance()),
             false => Err(
                 ParseError::new(self.peek(), message)
             ),
@@ -412,9 +405,8 @@ impl<'a> Parser<'a> {
 
     //jumps to start of next statement
     fn synchronize(&mut self) {
-        self.advance();
-
         while !(self.is_at_end()) {
+            self.advance();
             if self.previous().token_type == TokenType::Semicolon {
                 return
             }
@@ -430,7 +422,6 @@ impl<'a> Parser<'a> {
                 _ => continue,
             }
         };
-        self.advance();
     }
 }
 

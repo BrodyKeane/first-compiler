@@ -24,6 +24,7 @@ pub trait StmtVisitor {
 //    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
 }
 
+#[derive(Clone)]
 pub enum Stmt{
     StmtExpr(StmtExpr),
     Print(Print),
@@ -85,34 +86,41 @@ impl Stmt {
     }
 }
 
+#[derive(Clone)]
 pub struct StmtExpr {
     pub expr: Expr
 }
 
+#[derive(Clone)]
 pub struct Print {
     pub expr: Expr
 }
 
+#[derive(Clone)]
 pub struct Let {
     pub name: Rc<Token>,
     pub initializer: Option<Expr>,
 }
 
+#[derive(Clone)]
 pub struct Block {
     pub stmts: Vec<Stmt>
 }
 
+#[derive(Clone)]
 pub struct If {
     pub condition: Expr,
     pub body: Box<Stmt>,
     pub else_body: Box<Option<Stmt>>,
 }
 
+#[derive(Clone)]
 pub struct While {
     pub condition: Expr,
     pub body: Box<Stmt>,
 }
 
+#[derive(Clone)]
 pub struct Func {
     pub name: Rc<Token>,
     pub params: Vec<Rc<Token>>,

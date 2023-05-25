@@ -19,7 +19,7 @@ pub struct NativeFn {
 }
 
 impl Call for NativeFn {
-    fn call(&self, interpreter: &Interpreter, args: Vec<Rc<Value>>
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
         ) -> Result<Value, RuntimeError> {
         Ok((self.func)(interpreter, args))
     }
@@ -36,11 +36,11 @@ impl NativeDeclarations {
 
     pub fn declare_natives(&mut self) -> Arc<Mutex<Environment>> {
         self.declare_clock();
-        self.globals
+        std::mem::replace(&mut self.globals, Environment::new_wrapped(None))
     }
 
     fn declare_clock(&mut self) {
-        let clock_fn = |interpreter: &Interpreter, _: Vec<Rc<Value>>| -> Value {
+        let clock_fn = |_: &Interpreter, _: Vec<Rc<Value>>| -> Value {
             let current_time = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("Failed to get current time")
