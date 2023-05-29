@@ -77,7 +77,6 @@ impl Lax {
         let stmts = parser.parse();
 
         if self.status.had_compile_error {return};
-
         if let Err(error) = self.interpreter.interpret(&stmts) {
              self.status.report_runtime_error(error); 
         }
