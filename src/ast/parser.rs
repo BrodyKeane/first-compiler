@@ -132,8 +132,8 @@ impl<'a> Parser<'a> {
     fn return_stmt(&mut self) -> Result<Stmt, ParseError> {
         let keyword = self.previous();
         let value = match self.match_token(TokenType::Semicolon) {
-            true => Expr::new_literal(Rc::new(Value::None)),
-            false => self.expression()?,
+            true => None,
+            false => Some(self.expression()?),
         };
         self.consume(TokenType::Semicolon, "Expect ';' after return value.")?;
         Ok(Stmt::new_return(keyword, value))
@@ -204,7 +204,7 @@ impl<'a> Parser<'a> {
         let value: Expr = self.assignment()?;
 
         match expr {
-            Expr::Var(var) => Ok(Expr::new_assign(var.name, value)),
+            Expr::Var(var) => Ok(Expr::new_assign(var.token, value)),
             _ => {
                 let equals = self.previous();
                 Err(ParseError::new(equals, "Invalid assignment target."))

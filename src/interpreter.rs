@@ -139,7 +139,7 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
-        Ok(self.environment.lock().unwrap().get(expr.name.clone())?)
+        Ok(self.environment.lock().unwrap().get(expr.token.clone())?)
     }
 
     fn visit_assign_expr(&mut self, expr: &expr::Assign) -> Self::Output {
@@ -147,7 +147,7 @@ impl ExprVisitor for Interpreter {
         self.environment
             .lock()
             .unwrap()
-            .assign(expr.name.clone(), value.clone())?;
+            .assign(expr.token.clone(), value.clone())?;
         Ok(value)
     }
 
@@ -192,7 +192,7 @@ impl ExprVisitor for Interpreter {
 impl StmtVisitor for Interpreter {
     type Output = Result<Option<Rc<Value>>, RuntimeError>;
 
-    fn visit_expression_stmt(&mut self, stmt: &stmt::StmtExpr
+    fn visit_expr_stmt(&mut self, stmt: &stmt::StmtExpr
         ) -> Self::Output {
         self.evaluate(&stmt.expr)?;
         Ok(None)
@@ -213,7 +213,7 @@ impl StmtVisitor for Interpreter {
         self.environment
             .lock()
             .unwrap()
-            .define(stmt.name.lexeme.clone(), value);
+            .define(stmt.token.lexeme.clone(), value);
         Ok(None)
     }
 
@@ -227,7 +227,7 @@ impl StmtVisitor for Interpreter {
         let literal = self.evaluate(&stmt.condition)?;
         if self.is_truthy(&literal) {
             self.execute(&stmt.body)
-        } else if let Some(else_body) = &*stmt.else_body {
+        } else if let Some(else_body) = &stmt.else_body {
             self.execute(else_body)
         } else {
             Ok(None)
@@ -248,7 +248,7 @@ impl StmtVisitor for Interpreter {
     }
 
     fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
-        let name = stmt.name.lexeme.clone();
+        let name = stmt.token.lexeme.clone();
         let env = Arc::clone(&self.environment);
         let func = Callable::new_lax_fn(stmt.clone(), env);
         let callable = Rc::new(Value::Callable(func));
@@ -257,8 +257,11 @@ impl StmtVisitor for Interpreter {
     }
     
     fn visit_return_stmt(&mut self, stmt: &stmt::Return) -> Self::Output {
-        let value = self.evaluate(&stmt.value)?;
-        Ok(Some(value))
+        let value = match &stmt.value {
+            Some(value) => Some(self.evaluate(value)?),
+            None => None
+        };
+        Ok(value)
     }
 }
 

@@ -5,7 +5,6 @@ use crate::{
     token::Token,
 };
 
-
 pub trait AcceptStmtVisitor {
     fn accept<V: StmtVisitor>(&self, visitor: &mut V) -> V::Output;
 }
@@ -13,7 +12,7 @@ pub trait AcceptStmtVisitor {
 pub trait StmtVisitor {
     type Output;
 
-    fn visit_expression_stmt(&mut self, stmt: &StmtExpr) -> Self::Output;
+    fn visit_expr_stmt(&mut self, stmt: &StmtExpr) -> Self::Output;
     fn visit_print_stmt(&mut self, stmt: &Print) -> Self::Output;
     fn visit_let_stmt(&mut self, stmt: &Let) -> Self::Output;
     fn visit_block_stmt(&mut self, stmt: &Block) -> Self::Output;
@@ -39,7 +38,7 @@ pub enum Stmt{
 impl AcceptStmtVisitor for Stmt {
     fn accept<V: StmtVisitor>(&self, visitor: &mut V) -> V::Output {
         match self {
-            Stmt::StmtExpr(stmt) => visitor.visit_expression_stmt(stmt),
+            Stmt::StmtExpr(stmt) => visitor.visit_expr_stmt(stmt),
             Stmt::Print(stmt) => visitor.visit_print_stmt(stmt),
             Stmt::Let(stmt) => visitor.visit_let_stmt(stmt),
             Stmt::Block(stmt) => visitor.visit_block_stmt(stmt),
@@ -60,8 +59,8 @@ impl Stmt {
         Self::Print(Print{ expr })
     }
 
-    pub fn new_let(name: Rc<Token>, initializer: Option<Expr>) -> Self {
-        Self::Let(Let{ name, initializer })
+    pub fn new_let(token: Rc<Token>, initializer: Option<Expr>) -> Self {
+        Self::Let(Let{ token, initializer })
     }
 
     pub fn new_block(stmts: Vec<Stmt>) -> Self {
@@ -69,10 +68,14 @@ impl Stmt {
     }
 
     pub fn new_if(condition: Expr, body: Stmt, else_body: Option<Stmt>) -> Self {
+        let else_body = match else_body {
+            Some(val) => Some(Box::new(val)),
+            None => None,
+        };
         Self::If(If{
             condition,
             body: Box::new(body),
-            else_body: Box::new(else_body)
+            else_body
         })
     }
 
@@ -83,11 +86,11 @@ impl Stmt {
         })
     }
 
-    pub fn new_func(name: Rc<Token>, params: Vec<Rc<Token>>, body: Vec<Stmt>) -> Self {
-        Self::Func(Func { name, params, body })
+    pub fn new_func(token: Rc<Token>, params: Vec<Rc<Token>>, body: Vec<Stmt>) -> Self {
+        Self::Func(Func { token, params, body })
     }
 
-    pub fn new_return(keyword: Rc<Token>, value: Expr) -> Self {
+    pub fn new_return(keyword: Rc<Token>, value: Option<Expr>) -> Self {
         Self::Return(Return { keyword, value })
     }
 }
@@ -104,7 +107,7 @@ pub struct Print {
 
 #[derive(Clone)]
 pub struct Let {
-    pub name: Rc<Token>,
+    pub token: Rc<Token>,
     pub initializer: Option<Expr>,
 }
 
@@ -117,7 +120,7 @@ pub struct Block {
 pub struct If {
     pub condition: Expr,
     pub body: Box<Stmt>,
-    pub else_body: Box<Option<Stmt>>,
+    pub else_body: Option<Box<Stmt>>,
 }
 
 #[derive(Clone)]
@@ -128,7 +131,7 @@ pub struct While {
 
 #[derive(Clone)]
 pub struct Func {
-    pub name: Rc<Token>,
+    pub token: Rc<Token>,
     pub params: Vec<Rc<Token>>,
     pub body: Vec<Stmt>,
 }
@@ -136,5 +139,5 @@ pub struct Func {
 #[derive(Clone)]
 pub struct Return {
     pub keyword: Rc<Token>,
-    pub value: Expr,
+    pub value: Option<Expr>,
 }

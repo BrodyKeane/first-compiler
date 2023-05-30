@@ -16,6 +16,7 @@ mod error;
 mod scanner;
 mod token;
 mod ast;
+mod resolver;
 mod interpreter;
 mod environment;
 mod callables;

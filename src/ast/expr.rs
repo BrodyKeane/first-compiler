@@ -77,15 +77,15 @@ impl Expr {
         })
     }
 
-    pub fn new_var(name: Rc<Token>) -> Self {
+    pub fn new_var(token: Rc<Token>) -> Self {
         Expr::Var(Var{
-            name
+           token 
         })
     }
 
-    pub fn new_assign(name: Rc<Token>, value: Expr) -> Self {
+    pub fn new_assign(token: Rc<Token>, value: Expr) -> Self {
         Expr::Assign(Assign {
-            name,
+            token,
             value: Box::new(value),
         })
     }
@@ -132,12 +132,12 @@ pub struct Unary {
 
 #[derive(Clone)]
 pub struct Var {
-    pub name: Rc<Token>,
+    pub token: Rc<Token>,
 }
 
 #[derive(Clone)]
 pub struct Assign {
-    pub name: Rc<Token>,
+    pub token: Rc<Token>,
     pub value: Box<Expr>,
 }
 
