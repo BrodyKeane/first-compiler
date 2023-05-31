@@ -6,7 +6,6 @@ fn makeCounter() {
   }
   return count;
 }
-print "a";
 let counter = makeCounter();
 counter(); // "1".
 counter(); // "2".

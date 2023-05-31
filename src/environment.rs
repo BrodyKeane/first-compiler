@@ -40,7 +40,7 @@ impl Environment {
         match self.enclosing.clone() {
             Some(env) => env.lock().unwrap().get(token),
             None => {
-                let message = format!("Undefined variable '{}'.", token.lexeme);
+                let message = format!("'{}' cannot be found in current scope.", token.lexeme);
                 Err(RuntimeError::new(token, &message))
             }
         }
@@ -57,14 +57,14 @@ impl Environment {
                    .cloned()
             },
             None => { 
-                let message = format!("Undefined variable '{}'.", token.lexeme);
+                let message = format!("The scope where '{}' is declared cannot be accessed", token.lexeme);
                 return Err(RuntimeError::new(token, &message))
             }
         };
         match value {
             Some(val) => Ok(val),
             None => {
-                let message = format!("Undefined variable '{}'.", token.lexeme);
+                let message = format!("'{}' cannot be found in eclosing scopes.", token.lexeme);
                 Err(RuntimeError::new(token, &message))
             }
         }
@@ -83,7 +83,7 @@ impl Environment {
         match self.enclosing.clone() {
             Some(env) => env.lock().unwrap().assign(token, value),
             None => {
-                let message = format!("Undefined variable '{}'", token.lexeme);
+                let message = format!("Cannot assign a value to '{}' before it is declared", token.lexeme);
                 Err(RuntimeError::new(token, &message))
             }
         }
@@ -99,7 +99,7 @@ impl Environment {
                    .insert(token.lexeme.clone(), value);
             },
             None => { 
-                let message = format!("Undefined variable '{}'.", token.lexeme);
+                let message = format!("Cannot assign value to '{}' in unreachable scope.", token.lexeme);
                 return Err(RuntimeError::new(token, &message))
             }
         }

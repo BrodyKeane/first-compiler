@@ -29,7 +29,13 @@ impl<'a> Resolver<'a> {
         } 
     }
 
-    pub fn resolve_stmts(&mut self, stmts: &Vec<Stmt>) {
+    pub fn resolve(&mut self, stmts: &Vec<Stmt>) {
+        self.begin_scope();
+        self.resolve_stmts(stmts);
+        self.end_scope();
+    }
+
+    fn resolve_stmts(&mut self, stmts: &Vec<Stmt>) {
         for stmt in stmts {
             self.resolve_stmt(stmt);
         }

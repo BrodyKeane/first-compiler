@@ -1,0 +1,7 @@
+let a = "glob";
+
+fn print_glob() {
+  print a;
+}
+
+print_glob();

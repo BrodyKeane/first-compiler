@@ -85,11 +85,11 @@ impl Lax {
         let mut parser = Parser::new(&mut self.status, tokens);
         let stmts = parser.parse();
 
-//        if self.status.had_compile_error {return};
+        if self.status.had_compile_error {return};
 
         let mut resolver = Resolver::new(&mut self.status, &mut self.interpreter);
-        resolver.resolve_stmts(&stmts);
-//        if self.status.had_runtime_error {return}
+        resolver.resolve(&stmts);
+        if self.status.had_runtime_error {return}
 
         if let Err(error) = self.interpreter.interpret(&stmts) {
              self.status.report_runtime_error(error); 
