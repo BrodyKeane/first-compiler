@@ -167,6 +167,11 @@ impl StmtVisitor for Resolver<'_> {
         self.resolve_expr(&stmt.condition);
         self.resolve_stmt(&stmt.body);
     }
+
+    fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
+        self.declare(stmt.token.clone());
+        self.define(stmt.token.clone());
+    }
 }
 
 impl ExprVisitor for Resolver<'_> {

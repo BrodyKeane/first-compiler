@@ -1,0 +1,7 @@
+class ImClass {
+  im_method() {
+    return "im string";
+  }
+}
+
+print ImClass;

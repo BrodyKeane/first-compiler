@@ -10,6 +10,7 @@ use crate::{
     callables::{
         native_functions::NativeFn,
         lax_functions::LaxFn,
+        lax_class::LaxClass,
     }
 };
  
@@ -22,6 +23,7 @@ pub trait Call {
 pub enum Callable {
     NativeFn(NativeFn),
     LaxFn(LaxFn),
+    LaxClass(LaxClass)
 }
 
 impl Callable {
@@ -31,6 +33,10 @@ impl Callable {
 
     pub fn new_lax_fn(declaration: Func, closure: Arc<Mutex<Environment>>) -> Self {
         Callable::LaxFn(LaxFn { declaration, closure })
+    }
+
+    pub fn new_lax_class(name: String) -> Self {
+        Callable::LaxClass(LaxClass { name })
     }
 }
 
@@ -60,6 +66,7 @@ impl std::ops::Deref for Callable {
         match self {
             Callable::NativeFn(func) => func,
             Callable::LaxFn(func) => func,
+            Callable::LaxClass(class) => class,
         }
     }
 }

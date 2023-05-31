@@ -41,8 +41,9 @@ impl<'a> Parser<'a> {
 
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
         match self.peek().token_type {
-            TokenType::Fn => {self.advance(); self.func_declaration("function")},
             TokenType::Let => {self.advance(); self.let_declaration()},
+            TokenType::Fn => {self.advance(); self.func_declaration("function")},
+            TokenType::Class => {self.advance(); self.class_declaration()},
             _ => self.stmt(),
         }
     }
@@ -154,9 +155,23 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_stmt_expr(expr))
     }
 
+    fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let token = self
+            .consume(TokenType::Identifier, "Expect variable name.")?;
+
+        let mut initializer = None;
+        if self.match_token(TokenType::Equal) {
+            initializer = Some(self.expression()?);
+        }
+
+        self.consume(TokenType::Semicolon, 
+                     "Expect ';' after variable declaration.")?;
+        Ok(Stmt::new_let(token, initializer))
+    }
+
     fn func_declaration(&mut self, kind: &str) -> Result<Stmt, ParseError> {
         let message = format!("Expect {} name.", kind);
-        let name = self.consume(TokenType::Identifier, &message)?;
+        let token = self.consume(TokenType::Identifier, &message)?;
         self.consume(TokenType::OpenParen, "Expect '(' after function name.")?;
 
         let mut params = vec!();
@@ -173,21 +188,20 @@ impl<'a> Parser<'a> {
         let message = format!("Expect '{{' before {} body", kind);
         self.consume(TokenType::OpenBrace, &message)?;
         let body = self.block()?;
-        Ok(Stmt::new_func(name, params, body))
+        Ok(Stmt::new_func(token, params, body))
     }
 
-    fn let_declaration(&mut self) -> Result<Stmt, ParseError> {
-        let name = self
-            .consume(TokenType::Identifier, "Expect variable name.")?;
+    fn class_declaration(&mut self) -> Result<Stmt, ParseError> {
+        let token = self.consume(TokenType::Identifier, "Expect class name.")?;
+        self.consume(TokenType::OpenBrace, "Expect '{' before class body.")?;
 
-        let mut initializer = None;
-        if self.match_token(TokenType::Equal) {
-            initializer = Some(self.expression()?);
+        let mut methods = vec!();
+        while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
+            methods.push(self.func_declaration("method")?);
         }
-
-        self.consume(TokenType::Semicolon, 
-                     "Expect ';' after variable declaration.")?;
-        Ok(Stmt::new_let(name, initializer))
+        self.consume(TokenType::CloseBrace, "Expect '}' after class body.")?;
+        let class = Stmt::new_class(token, methods);
+        Ok(class)
     }
 
     fn expression(&mut self) -> Result<Expr, ParseError> {

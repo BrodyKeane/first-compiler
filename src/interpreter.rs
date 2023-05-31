@@ -288,8 +288,8 @@ impl StmtVisitor for Interpreter {
         let env = Arc::clone(&self.environment);
         let name = stmt.token.lexeme.clone();
         let func = Callable::new_lax_fn(stmt.clone(), env);
-        let callable = Rc::new(Value::Callable(func));
-        self.environment.lock().unwrap().define(name, callable);
+        let value = Rc::new(Value::Callable(func));
+        self.environment.lock().unwrap().define(name, value);
         Ok(None)
     }
     
@@ -299,6 +299,18 @@ impl StmtVisitor for Interpreter {
             None => None
         };
         Ok(value)
+    }
+
+    fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
+        self.environment
+            .lock()
+            .unwrap()
+            .define(stmt.token.lexeme.clone(), Rc::new(Value::None));
+        let name = stmt.token.lexeme.clone();
+        let class = Callable::new_lax_class(name);
+        let value = Rc::new(Value::Callable(class));
+        self.environment.lock().unwrap().assign(stmt.token.clone(), value)?;
+        Ok(None)
     }
 }
 

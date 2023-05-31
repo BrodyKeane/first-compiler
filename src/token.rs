@@ -1,7 +1,10 @@
 use std::fmt;
 use std::rc::Rc;
 
-use crate::callables::Callable;
+use crate::callables::{
+    lax_instance::LaxInstance,
+    Callable,
+};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TokenType{
@@ -34,6 +37,7 @@ pub enum Value {
     Num(f64),
     Bool(bool),
     Callable(Callable),
+    LaxInstance(LaxInstance),
     None
 }
 
@@ -44,6 +48,7 @@ impl fmt::Display for Value {
             Value::Num(value) => write!(f, "{}", value),
             Value::Bool(value) => write!(f, "{}", value),
             Value::Callable(value) => write!(f, "{}", value),
+            Value::LaxInstance(value) => write!(f, "{}", value),
             Value::None => write!(f, "nil"),
         }
     }

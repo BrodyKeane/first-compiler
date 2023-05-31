@@ -20,7 +20,7 @@ pub trait StmtVisitor {
     fn visit_while_stmt(&mut self, stmt: &While) -> Self::Output;
     fn visit_func_stmt(&mut self, stmt: &Func) -> Self::Output;
     fn visit_return_stmt(&mut self, stmt: &Return) -> Self::Output;
-//    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
+    fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
 }
 
 #[derive(Clone)]
@@ -33,6 +33,7 @@ pub enum Stmt{
     While(While),
     Func(Func),
     Return(Return),
+    Class(Class),
 }
 
 impl AcceptStmtVisitor for Stmt {
@@ -46,6 +47,7 @@ impl AcceptStmtVisitor for Stmt {
             Stmt::While(stmt) => visitor.visit_while_stmt(stmt),
             Stmt::Func(stmt) => visitor.visit_func_stmt(stmt),
             Stmt::Return(stmt) => visitor.visit_return_stmt(stmt),
+            Stmt::Class(stmt) => visitor.visit_class_stmt(stmt),
         }
     }
 }
@@ -68,10 +70,7 @@ impl Stmt {
     }
 
     pub fn new_if(condition: Expr, body: Stmt, else_body: Option<Stmt>) -> Self {
-        let else_body = match else_body {
-            Some(val) => Some(Box::new(val)),
-            None => None,
-        };
+        let else_body = else_body.map(|s| Box::new(s));
         Self::If(If{
             condition,
             body: Box::new(body),
@@ -92,6 +91,10 @@ impl Stmt {
 
     pub fn new_return(keyword: Rc<Token>, value: Option<Expr>) -> Self {
         Self::Return(Return { keyword, value })
+    }
+
+    pub fn new_class(token: Rc<Token>, methods: Vec<Stmt>) -> Self {
+        Self::Class(Class { token , methods })
     }
 }
 
@@ -140,4 +143,10 @@ pub struct Func {
 pub struct Return {
     pub keyword: Rc<Token>,
     pub value: Option<Expr>,
+}
+
+#[derive(Clone)]
+pub struct Class {
+    pub token: Rc<Token>,
+    pub methods: Vec<Stmt>,
 }
