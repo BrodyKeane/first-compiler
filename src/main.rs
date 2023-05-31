@@ -11,6 +11,7 @@ use scanner::Scanner;
 use error::ErrorStatus;
 use interpreter::Interpreter;
 use ast::parser::Parser;
+use resolver::Resolver;
 
 mod error;
 mod scanner;
@@ -48,7 +49,13 @@ impl Lax {
         }
     }
     pub fn run_file(&mut self, path: &String) {
-        let source = fs::read_to_string(path).unwrap();
+        let source = match fs::read_to_string(path) {
+            Ok(file) => file,
+            Err(_) => {
+                eprintln!("File not found in current directory.");
+                process::exit(1)
+            },
+        };
         self.run(source);
         if self.status.had_compile_error {process::exit(65)}
         if self.status.had_runtime_error {process::exit(70)}
@@ -74,10 +81,16 @@ impl Lax {
     fn run(&mut self, source: String) {
         let mut  scanner = Scanner::new(&mut self.status, source);
         let tokens = scanner.scan_tokens();
+
         let mut parser = Parser::new(&mut self.status, tokens);
         let stmts = parser.parse();
 
-        if self.status.had_compile_error {return};
+//        if self.status.had_compile_error {return};
+
+        let mut resolver = Resolver::new(&mut self.status, &mut self.interpreter);
+        resolver.resolve_stmts(&stmts);
+//        if self.status.had_runtime_error {return}
+
         if let Err(error) = self.interpreter.interpret(&stmts) {
              self.status.report_runtime_error(error); 
         }

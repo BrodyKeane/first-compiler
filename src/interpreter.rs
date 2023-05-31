@@ -1,6 +1,9 @@
-use std::ops::Deref;
-use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::{
+    collections::HashMap, 
+    ops::Deref,
+    rc::Rc,
+    sync::{Arc, Mutex},
+};
 
 use crate::callables::Callable;
 use crate::{
@@ -12,11 +15,13 @@ use crate::{
     token::{Value, TokenType},
     environment::Environment,
     error::RuntimeError,
+    token::Token,
 };
 
 pub struct Interpreter {
     pub globals: Arc<Mutex<Environment>>,
     environment: Arc<Mutex<Environment>>,
+    locals: HashMap<u64, usize>
 }
 
 impl Interpreter {
@@ -25,7 +30,12 @@ impl Interpreter {
         let mut native = NativeDeclarations::new(Arc::clone(&globals));
         globals = native.declare_natives();
         let environment = Environment::new_wrapped(Some(Arc::clone(&globals)));
-        Interpreter { globals, environment }
+        
+        Interpreter {
+            globals,
+            environment,
+            locals: HashMap::new(),
+        }
     }
 
     pub fn interpret(&mut self, stmts: &Vec<Stmt>) -> Result<(), RuntimeError>{
@@ -35,12 +45,16 @@ impl Interpreter {
         Ok(())
     }
 
+    fn execute(&mut self, stmt: &Stmt) -> Result<Option<Rc<Value>>, RuntimeError> {
+        stmt.accept(self)
+    }
+
     fn evaluate(&mut self, expr: &Expr) -> Result<Rc<Value>, RuntimeError> {
         expr.accept(self)
     }
- 
-    fn execute(&mut self, stmt: &Stmt) -> Result<Option<Rc<Value>>, RuntimeError> {
-        stmt.accept(self)
+
+    pub fn resolve(&mut self, id: u64, depth: usize) {
+        self.locals.insert(id, depth);
     }
 
     pub fn execute_block(&mut self, stmts: &Vec<Stmt>, env: Arc<Mutex<Environment>>
@@ -56,11 +70,24 @@ impl Interpreter {
         Ok(None)
     }
 
+    fn lookup_variable(&self, token: Rc<Token>, id: u64
+        ) -> Result<Rc<Value>, RuntimeError> {
+        match self.locals.get(&id) {
+            Some(depth) => {
+                self.environment
+                    .lock()
+                    .unwrap()
+                    .get_at(depth.to_owned(), token)
+            },
+            None => self.globals.lock().unwrap().get(token),
+        }
+    }
+
     fn is_truthy(&self, value: &Value) -> bool {
         match value {
             Value::Bool(val) => val.to_owned(),
             Value::None => false,
-            _ => true
+            _ => true,
         }
     }
 }
@@ -139,15 +166,25 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
-        Ok(self.environment.lock().unwrap().get(expr.token.clone())?)
+        self.lookup_variable(expr.token.clone(), expr.id)
     }
 
     fn visit_assign_expr(&mut self, expr: &expr::Assign) -> Self::Output {
         let value = self.evaluate(&expr.value)?;
-        self.environment
-            .lock()
-            .unwrap()
-            .assign(expr.token.clone(), value.clone())?;
+        match self.locals.get(&expr.id) {
+            Some(distance) => {
+                self.environment
+                    .lock()
+                    .unwrap()
+                    .assign_at(distance.to_owned(), expr.token.clone(), value.clone())?;
+            },
+            None => {
+                self.globals
+                    .lock()
+                    .unwrap()
+                    .assign(expr.token.clone(), value.clone())?;
+            },
+        }
         Ok(value)
     }
 
@@ -185,7 +222,7 @@ impl ExprVisitor for Interpreter {
                                   function.arity(), args.len());
             return Err(RuntimeError::new(expr.paren.clone(), &message))
         }
-        Ok(function.call(self, args)?)
+        function.call(self, args)
     }
 }
 

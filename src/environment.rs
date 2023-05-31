@@ -7,7 +7,7 @@ use crate::{
     error::RuntimeError,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Environment {
     pub values: HashMap<String, Rc<Value>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,
@@ -46,6 +46,30 @@ impl Environment {
         }
     }
 
+    pub fn get_at(&self, distance: usize, token: Rc<Token>
+        ) -> Result<Rc<Value> , RuntimeError> {
+        let value = match self.ancestor(distance) {
+            Some(env) => { 
+                env.lock()
+                   .unwrap()
+                   .values
+                   .get_mut(&token.lexeme)
+                   .cloned()
+            },
+            None => { 
+                let message = format!("Undefined variable '{}'.", token.lexeme);
+                return Err(RuntimeError::new(token, &message))
+            }
+        };
+        match value {
+            Some(val) => Ok(val),
+            None => {
+                let message = format!("Undefined variable '{}'.", token.lexeme);
+                Err(RuntimeError::new(token, &message))
+            }
+        }
+    }
+
     //check innermost env for var else recursively check outer env 
     pub fn assign(&mut self, token: Rc<Token>, value: Rc<Value>
         ) -> Result<(), RuntimeError>{
@@ -63,6 +87,35 @@ impl Environment {
                 Err(RuntimeError::new(token, &message))
             }
         }
+    }
+
+    pub fn assign_at(&mut self, distance: usize, token: Rc<Token>, value: Rc<Value>
+        ) -> Result<(), RuntimeError> {
+        match self.ancestor(distance) {
+            Some(env) => { 
+                env.lock()
+                   .unwrap()
+                   .values
+                   .insert(token.lexeme.clone(), value);
+            },
+            None => { 
+                let message = format!("Undefined variable '{}'.", token.lexeme);
+                return Err(RuntimeError::new(token, &message))
+            }
+        }
+        Ok(())
+    }
+
+    fn ancestor(&self, distance: usize) -> Option<Arc<Mutex<Environment>>> {
+        let mut env = Arc::new(Mutex::new(self.clone()));
+        for _ in 0..distance {
+            let enclosing = env.lock().unwrap().enclosing.clone();
+            env = match enclosing {
+                Some(env) => env,
+                None => return None
+            };
+        }
+        Some(env)
     }
 }
 

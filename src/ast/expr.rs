@@ -1,4 +1,7 @@
+use lazy_static::lazy_static;
+
 use std::rc::Rc;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::token::{Token, Value};
 
@@ -22,7 +25,6 @@ pub trait ExprVisitor {
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
 //    fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
 }
-
 
 #[derive(Clone)]
 pub enum Expr {
@@ -53,7 +55,9 @@ impl AcceptExprVisitor for Expr {
 
 impl Expr {
     pub fn new_binary(left: Expr, operator: Rc<Token>, right: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Binary(Binary {
+            id,
             left: Box::new(left),
             operator,
             right: Box::new(right),
@@ -61,37 +65,48 @@ impl Expr {
     }
     
     pub fn new_grouping(expr: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Grouping(Grouping {
+            id,
             expr: Box::new(expr),
         })
     }
 
     pub fn new_literal(value: Rc<Value>) -> Self {
-        Expr::Literal(Literal { value })
+        let id = ID_GENERATOR.generate_id();
+        Expr::Literal(Literal { id, value })
     }
 
     pub fn new_unary(operator: Rc<Token>, right: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Unary(Unary {
+            id,
             operator,
             right: Box::new(right),
         })
     }
 
     pub fn new_var(token: Rc<Token>) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Var(Var{
-           token 
+            id,
+            token 
         })
     }
 
     pub fn new_assign(token: Rc<Token>, value: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Assign(Assign {
+            id,
             token,
             value: Box::new(value),
         })
     }
 
     pub fn new_logical(left: Expr, operator: Rc<Token>, right: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Logical(Logical{
+            id,
             left: Box::new(left),
             operator,
             right: Box::new(right),
@@ -99,7 +114,9 @@ impl Expr {
     }
 
     pub fn new_call(callee: Expr, paren: Rc<Token>, args: Vec<Expr>) -> Self {
+        let id = ID_GENERATOR.generate_id();
         Expr::Call(Call{
+            id,
             callee: Box::new(callee),
             paren,
             args,
@@ -107,50 +124,80 @@ impl Expr {
     }
 }
 
+lazy_static! {
+    static ref ID_GENERATOR: IdGenerator = IdGenerator::new();
+}
+
+struct IdGenerator {
+    next_id: AtomicU64,
+}
+
+impl IdGenerator {
+    fn new() -> Self {
+        IdGenerator {
+            next_id: AtomicU64::new(0),
+        }
+    }
+
+    fn generate_id(&self) -> u64 {
+        self.next_id.fetch_add(1, Ordering::Relaxed)
+    }
+}
+
+
 #[derive(Clone)]
 pub struct Binary {
-  pub left: Box<Expr>,
-  pub operator: Rc<Token>,
-  pub right: Box<Expr>,
+    pub id: u64,
+    pub left: Box<Expr>,
+    pub operator: Rc<Token>,
+    pub right: Box<Expr>,
 }
 
 #[derive(Clone)]
 pub struct Grouping {
+    pub id: u64,
     pub expr: Box<Expr>, 
 }
 
 #[derive(Clone)]
 pub struct Literal {
+    pub id: u64,
     pub value: Rc<Value>,
 }
 
 #[derive(Clone)]
 pub struct Unary {
+    pub id: u64,
     pub operator: Rc<Token>,
     pub right: Box<Expr>,
 }
 
 #[derive(Clone)]
 pub struct Var {
+    pub id: u64,
     pub token: Rc<Token>,
 }
 
 #[derive(Clone)]
 pub struct Assign {
+    pub id: u64,
     pub token: Rc<Token>,
     pub value: Box<Expr>,
 }
 
 #[derive(Clone)]
 pub struct Logical {
-  pub left: Box<Expr>,
-  pub operator: Rc<Token>,
-  pub right: Box<Expr>,
+    pub id: u64,
+    pub left: Box<Expr>,
+    pub operator: Rc<Token>,
+    pub right: Box<Expr>,
 }
 
 #[derive(Clone)]
 pub struct Call {
+    pub id: u64,
     pub callee: Box<Expr>,
     pub paren: Rc<Token>,
     pub args: Vec<Expr>
 }
+
