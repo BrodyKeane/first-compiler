@@ -1,5 +1,6 @@
-use std::{fmt, rc::Rc};
+use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::{
     interpreter::Interpreter,
@@ -17,6 +18,7 @@ use crate::{
 pub trait Call {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
         ) -> Result<Rc<Value>, RuntimeError>;
+
     fn arity(&self) -> usize;
 }
 
@@ -27,8 +29,9 @@ pub enum Callable {
 }
 
 impl Callable {
-    pub fn new_native_fn(func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>) -> Value>, arity: usize) -> Self {
-        Callable::NativeFn(NativeFn { func, arity })
+    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>
+        ) -> Value>, arity: usize) -> Self {
+        Callable::NativeFn(NativeFn { name, func, arity })
     }
 
     pub fn new_lax_fn(declaration: Func, closure: Arc<Mutex<Environment>>) -> Self {
@@ -49,13 +52,11 @@ impl PartialEq for Callable {
 
 impl fmt::Display for Callable {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-         write!(f, "{:?}", self)
-    }
-}
-
-impl fmt::Debug for Callable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "<native fn>")
+        match self {
+            Callable::LaxFn(func) => write!(f, "{}", func),
+            Callable::NativeFn(func) => write!(f, "{}", func),
+            Callable::LaxClass(class) => write!(f, "{}", class),
+        }
     }
 }
 

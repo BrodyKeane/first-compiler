@@ -31,7 +31,7 @@ pub enum TokenType{
     Eof,
 }
 
-#[derive(Debug, PartialEq)]
+#[derive(PartialEq)]
 pub enum Value {
     String(String),
     Num(f64),
@@ -54,7 +54,6 @@ impl fmt::Display for Value {
     }
 }
 
-#[derive(Debug)]
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
@@ -76,8 +75,13 @@ impl Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} {:?} {:?}", self.token_type, self.lexeme, self.literal)
+        write!(f, "{:?} {} {}", self.token_type, self.lexeme, self.literal)
     }
 }
 
+impl fmt::Debug for Token {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self)
+    }
+}
 

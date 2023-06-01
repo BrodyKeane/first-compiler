@@ -1,5 +1,6 @@
 use std::rc::Rc;
 use std::sync::{Arc, Mutex};
+use std::fmt;
 
 use crate::{
     interpreter::Interpreter,
@@ -33,5 +34,11 @@ impl Call for LaxFn {
 
     fn arity(&self) -> usize {
         self.declaration.params.len()
+    }
+}
+
+impl fmt::Display for LaxFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.declaration)
     }
 }

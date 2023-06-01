@@ -1,4 +1,5 @@
 use std::rc::Rc;
+use std::fmt;
 
 use crate::{
     ast::expr::Expr,
@@ -150,3 +151,16 @@ pub struct Class {
     pub token: Rc<Token>,
     pub methods: Vec<Stmt>,
 }
+
+impl fmt::Display for Func {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.token)
+    }
+}
+
+impl fmt::Display for Class {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.token)
+    }
+}
+

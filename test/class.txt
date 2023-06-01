@@ -1,7 +1,6 @@
-class ImClass {
-  im_method() {
-    return "im string";
+class DevonshireCream {
+  serveOn() {
+    return "Scones";
   }
 }
-
-print ImClass;
+print DevonshireCream; // Prints "DevonshireCream".

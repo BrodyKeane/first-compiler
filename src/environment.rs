@@ -7,7 +7,7 @@ use crate::{
     error::RuntimeError,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Clone)]
 pub struct Environment {
     pub values: HashMap<String, Rc<Value>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,

@@ -1,6 +1,7 @@
 use std::time::SystemTime;
 use std::sync::{Arc, Mutex};
 use std::rc::Rc;
+use std::fmt;
 
 use crate::{
     interpreter::Interpreter,
@@ -10,13 +11,10 @@ use crate::{
     token::Value,
 };
 
-pub struct NativeDeclarations{
-    globals: Arc<Mutex<Environment>>
-}
-
 pub struct NativeFn {
     pub func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>) -> Value>,
     pub arity: usize,
+    pub name: String,
 }
 
 impl Call for NativeFn {
@@ -28,6 +26,16 @@ impl Call for NativeFn {
     fn arity(&self) -> usize {
         self.arity
     }
+}
+
+impl fmt::Display for NativeFn {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "{}", self.name)
+    }
+}
+
+pub struct NativeDeclarations{
+    globals: Arc<Mutex<Environment>>
 }
 
 impl NativeDeclarations {
@@ -48,8 +56,11 @@ impl NativeDeclarations {
                 .as_secs_f64();
             Value::Num(current_time)
         };
-        let value = Rc::new(Value::Callable(Callable::new_native_fn(Box::new(clock_fn), 0)));
-        self.globals.lock().unwrap().define("clock".to_string(), value);
+        let name = "clock".to_string();
+        let callable = Callable::new_native_fn(name.clone(), Box::new(clock_fn), 0);
+        let value = Rc::new(Value::Callable(callable));
+        self.globals.lock().unwrap().define(name, value);
     }
 
 }
+
