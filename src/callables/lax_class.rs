@@ -4,7 +4,7 @@ use std::{
 };
 
 use crate::{
-    callables::{Call, lax_instance::LaxInstance},
+    callables::{Call, lax_object::LaxObject},
     interpreter::Interpreter,
     token::Value,
     error::RuntimeError
@@ -16,9 +16,9 @@ pub struct LaxClass {
 }
 
 impl Call for LaxClass {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
+    fn call(&self, _interpreter: &mut Interpreter, _args: Vec<Rc<Value>>
         ) -> Result<Rc<Value>, RuntimeError> {
-       Ok(Rc::new(Value::LaxInstance(LaxInstance::new(self.clone()))))
+       Ok(Rc::new(Value::LaxObject(LaxObject::new(self.clone()))))
     }
 
     fn arity(&self) -> usize {

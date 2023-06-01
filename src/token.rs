@@ -2,7 +2,7 @@ use std::fmt;
 use std::rc::Rc;
 
 use crate::callables::{
-    lax_instance::LaxInstance,
+    lax_object::LaxObject,
     Callable,
 };
 
@@ -29,29 +29,6 @@ pub enum TokenType{
     Nil, Print, Super, This,
 
     Eof,
-}
-
-#[derive(PartialEq)]
-pub enum Value {
-    String(String),
-    Num(f64),
-    Bool(bool),
-    Callable(Callable),
-    LaxInstance(LaxInstance),
-    None
-}
-
-impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        match self {
-            Value::String(value) => write!(f, "{}", value),
-            Value::Num(value) => write!(f, "{}", value),
-            Value::Bool(value) => write!(f, "{}", value),
-            Value::Callable(value) => write!(f, "{}", value),
-            Value::LaxInstance(value) => write!(f, "{}", value),
-            Value::None => write!(f, "nil"),
-        }
-    }
 }
 
 pub struct Token {
@@ -82,6 +59,30 @@ impl fmt::Display for Token {
 impl fmt::Debug for Token {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "{}", self)
+    }
+}
+
+#[derive(PartialEq)]
+pub enum Value {
+    String(String),
+    Num(f64),
+    Bool(bool),
+    Callable(Callable),
+    LaxObject(LaxObject),
+    None
+}
+
+
+impl fmt::Display for Value {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Value::String(value) => write!(f, "{}", value),
+            Value::Num(value) => write!(f, "{}", value),
+            Value::Bool(value) => write!(f, "{}", value),
+            Value::Callable(value) => write!(f, "{}", value),
+            Value::LaxObject(value) => write!(f, "{}", value),
+            Value::None => write!(f, "nil"),
+        }
     }
 }
 

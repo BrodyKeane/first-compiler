@@ -224,6 +224,16 @@ impl ExprVisitor for Interpreter {
         }
         function.call(self, args)
     }
+
+    fn visit_get_expr(&mut self, expr: &expr::Get) -> Self::Output {
+        let value = self.evaluate(&expr.object)?;
+        match value.as_ref() { 
+            Value::LaxObject(object) => Ok(object.get(expr.token.clone())?),
+            _ => Err(RuntimeError::new(expr.token.clone(), 
+                "Only instances have properties."))
+        }
+
+    }
 }
 
 impl StmtVisitor for Interpreter {

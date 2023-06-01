@@ -1,0 +1,3 @@
+class Bagel {}
+let bagel = Bagel();
+print bagel; // Prints "Bagel instance".

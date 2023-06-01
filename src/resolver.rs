@@ -218,6 +218,10 @@ impl ExprVisitor for Resolver<'_> {
     fn visit_unary_expr(&mut self, expr: &expr::Unary) -> Self::Output {
         self.resolve_expr(&expr.right);
     }
+
+    fn visit_get_expr(&mut self, expr: &expr::Get) -> Self::Output {
+        self.resolve_expr(&expr.object);
+    }
 }
 
 enum FuncType {

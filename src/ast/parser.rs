@@ -318,8 +318,16 @@ impl<'a> Parser<'a> {
 
     fn call(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.primary()?;
-        while self.match_token(TokenType::OpenParen) {
-            expr = self.finish_call(expr)?;
+        loop {
+            if self.match_token(TokenType::OpenParen) {
+                expr = self.finish_call(expr)?;
+            } 
+            else if self.match_token(TokenType::Dot) {
+                let token = self.consume(TokenType::Identifier,
+                    "Expect property name after '.'")?;
+                expr = Expr::new_get(expr, token);
+            } 
+            else {break}
         }
         Ok(expr)
     }

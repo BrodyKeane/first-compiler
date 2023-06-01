@@ -20,7 +20,7 @@ pub trait ExprVisitor {
     fn visit_assign_expr(&mut self, expr: &Assign) -> Self::Output;
     fn visit_logical_expr(&mut self, expr: &Logical) -> Self::Output;
     fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
-//    fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
+    fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
 //    fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
 //    fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
@@ -36,6 +36,7 @@ pub enum Expr {
     Assign(Assign),
     Logical(Logical),
     Call(Call),
+    Get(Get),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -49,6 +50,7 @@ impl AcceptExprVisitor for Expr {
             Expr::Assign(expr) => visitor.visit_assign_expr(expr),
             Expr::Logical(expr) => visitor.visit_logical_expr(expr),
             Expr::Call(expr) => visitor.visit_call_expr(expr),
+            Expr::Get(expr) => visitor.visit_get_expr(expr),
         }
     }
 }
@@ -120,6 +122,15 @@ impl Expr {
             callee: Box::new(callee),
             paren,
             args,
+        })
+    }
+
+    pub fn new_get(object: Expr, token: Rc<Token>) -> Self {
+        let id = ID_GENERATOR.generate_id();
+        Expr::Get(Get{
+            id,
+            object: Box::new(object),
+            token,
         })
     }
 }
@@ -201,3 +212,9 @@ pub struct Call {
     pub args: Vec<Expr>
 }
 
+#[derive(Clone)]
+pub struct Get {
+    pub id: u64,
+    pub object: Box<Expr>,
+    pub token: Rc<Token>,
+}
