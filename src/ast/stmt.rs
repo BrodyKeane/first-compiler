@@ -134,16 +134,16 @@ pub struct While {
 }
 
 #[derive(Clone)]
+pub struct Return {
+    pub keyword: Rc<Token>,
+    pub value: Option<Expr>,
+}
+
+#[derive(Clone)]
 pub struct Func {
     pub token: Rc<Token>,
     pub params: Vec<Rc<Token>>,
     pub body: Vec<Stmt>,
-}
-
-#[derive(Clone)]
-pub struct Return {
-    pub keyword: Rc<Token>,
-    pub value: Option<Expr>,
 }
 
 #[derive(Clone)]

@@ -4,7 +4,7 @@ use crate::{token::{Value, Token}, error::RuntimeError};
 
 use super::lax_class::LaxClass;
 
-#[derive(PartialEq)]
+#[derive(PartialEq, Clone)]
 pub struct LaxObject {
     class: LaxClass,
     fields: HashMap<String, Rc<Value>>,
@@ -26,6 +26,10 @@ impl LaxObject {
                 Err(RuntimeError::new(token, &message))
             }
         }
+    }
+
+    pub fn set(&mut self, token: Rc<Token>, value: Rc<Value>) {
+        self.fields.insert(token.lexeme.clone(), value);
     }
 }
 

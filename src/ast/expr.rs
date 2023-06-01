@@ -21,7 +21,7 @@ pub trait ExprVisitor {
     fn visit_logical_expr(&mut self, expr: &Logical) -> Self::Output;
     fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
     fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
-//    fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
+    fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
 //    fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
 }
@@ -37,6 +37,7 @@ pub enum Expr {
     Logical(Logical),
     Call(Call),
     Get(Get),
+    Set(Set),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -51,6 +52,7 @@ impl AcceptExprVisitor for Expr {
             Expr::Logical(expr) => visitor.visit_logical_expr(expr),
             Expr::Call(expr) => visitor.visit_call_expr(expr),
             Expr::Get(expr) => visitor.visit_get_expr(expr),
+            Expr::Set(expr) => visitor.visit_set_expr(expr),
         }
     }
 }
@@ -131,6 +133,16 @@ impl Expr {
             id,
             object: Box::new(object),
             token,
+        })
+    }
+
+    pub fn new_set(object: Expr, token: Rc<Token>, value: Expr) -> Self {
+        let id = ID_GENERATOR.generate_id();
+        Expr::Set(Set{
+            id,
+            object: Box::new(object),
+            token,
+            value: Box::new(value),
         })
     }
 }
@@ -217,4 +229,12 @@ pub struct Get {
     pub id: u64,
     pub object: Box<Expr>,
     pub token: Rc<Token>,
+}
+
+#[derive(Clone)]
+pub struct Set {
+    pub id: u64, 
+    pub object:  Box<Expr>,
+    pub token: Rc<Token>,
+    pub value: Box<Expr>,
 }

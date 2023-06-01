@@ -10,6 +10,7 @@ use crate::{
     },
     token::Token,
     error::{ErrorStatus, ParseError, RuntimeError},
+    callables::callable::FuncType,
 };
 
 pub struct Resolver<'a> {
@@ -171,6 +172,18 @@ impl StmtVisitor for Resolver<'_> {
     fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
         self.declare(stmt.token.clone());
         self.define(stmt.token.clone());
+        
+        for wrapped_method in &stmt.methods {
+            let method = match wrapped_method {
+                Stmt::Func(func) => func,
+                _ => {
+                    let error = RuntimeError::new(stmt.token.clone(), "Undefined method");
+                    self.status.report_runtime_error(error);
+                    continue
+                }
+            };
+            self.resolve_func(&method, FuncType::Method)
+        }
     }
 }
 
@@ -222,9 +235,10 @@ impl ExprVisitor for Resolver<'_> {
     fn visit_get_expr(&mut self, expr: &expr::Get) -> Self::Output {
         self.resolve_expr(&expr.object);
     }
+    
+    fn visit_set_expr(&mut self, expr: &expr::Set) -> Self::Output {
+        self.resolve_expr(&expr.value);
+        self.resolve_expr(&expr.object);
+    }
 }
 
-enum FuncType {
-    Function, 
-    None,
-}

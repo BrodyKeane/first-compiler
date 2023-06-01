@@ -22,6 +22,13 @@ pub trait Call {
     fn arity(&self) -> usize;
 }
 
+#[derive(Debug)]
+pub enum FuncType {
+    Function, 
+    Method,
+    None,
+}
+
 pub enum Callable {
     NativeFn(NativeFn),
     LaxFn(LaxFn),

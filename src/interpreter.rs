@@ -230,9 +230,22 @@ impl ExprVisitor for Interpreter {
         match value.as_ref() { 
             Value::LaxObject(object) => Ok(object.get(expr.token.clone())?),
             _ => Err(RuntimeError::new(expr.token.clone(), 
-                "Only instances have properties."))
+                    "Only instances have properties."))
         }
+    }
 
+    fn visit_set_expr(&mut self, expr: &expr::Set) -> Self::Output {
+        let value = self.evaluate(&expr.object)?;
+
+        let mut object = match value.as_ref() {
+            Value::LaxObject(object)=> object,
+            _ => return Err(RuntimeError::new(expr.token.clone(), 
+                            "Only instances have fields."))
+        };
+        
+        let value = self.evaluate(&expr.value)?;
+        object.set(expr.token.clone(), value.clone());
+        Ok(value)
     }
 }
 

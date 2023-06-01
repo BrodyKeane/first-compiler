@@ -3,6 +3,7 @@ use std::rc::Rc;
 use crate::{
     token::{Token, TokenType, Value},
     error::{ErrorStatus, ParseError},
+    callables::callable::FuncType,
     ast::{
         expr::Expr,
         stmt::Stmt,
@@ -42,7 +43,7 @@ impl<'a> Parser<'a> {
     fn declaration(&mut self) -> Result<Stmt, ParseError> {
         match self.peek().token_type {
             TokenType::Let => {self.advance(); self.let_declaration()},
-            TokenType::Fn => {self.advance(); self.func_declaration("function")},
+            TokenType::Fn => {self.advance(); self.func_declaration(FuncType::Function)},
             TokenType::Class => {self.advance(); self.class_declaration()},
             _ => self.stmt(),
         }
@@ -169,8 +170,8 @@ impl<'a> Parser<'a> {
         Ok(Stmt::new_let(token, initializer))
     }
 
-    fn func_declaration(&mut self, kind: &str) -> Result<Stmt, ParseError> {
-        let message = format!("Expect {} name.", kind);
+    fn func_declaration(&mut self, func_type: FuncType) -> Result<Stmt, ParseError> {
+        let message = format!("Expect {:?} name.", func_type);
         let token = self.consume(TokenType::Identifier, &message)?;
         self.consume(TokenType::OpenParen, "Expect '(' after function name.")?;
 
@@ -185,7 +186,7 @@ impl<'a> Parser<'a> {
             }
         }
         self.consume(TokenType::CloseParen, "Expect ')' after parameters.")?;
-        let message = format!("Expect '{{' before {} body", kind);
+        let message = format!("Expect '{{' before {:?} body", func_type);
         self.consume(TokenType::OpenBrace, &message)?;
         let body = self.block()?;
         Ok(Stmt::new_func(token, params, body))
@@ -197,7 +198,7 @@ impl<'a> Parser<'a> {
 
         let mut methods = vec!();
         while !self.check(TokenType::CloseBrace) && !self.is_at_end() {
-            methods.push(self.func_declaration("method")?);
+            methods.push(self.func_declaration(FuncType::Method)?);
         }
         self.consume(TokenType::CloseBrace, "Expect '}' after class body.")?;
         let class = Stmt::new_class(token, methods);
@@ -213,12 +214,13 @@ impl<'a> Parser<'a> {
 
         if !self.match_token(TokenType::Equal) {
             return Ok(expr)
-        } 
+        }
 
         let value: Expr = self.assignment()?;
 
         match expr {
             Expr::Var(var) => Ok(Expr::new_assign(var.token, value)),
+            Expr::Get(var) => Ok(Expr::new_set(*var.object, var.token, value)),
             _ => {
                 let equals = self.previous();
                 Err(ParseError::new(equals, "Invalid assignment target."))
