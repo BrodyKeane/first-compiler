@@ -1,5 +1,8 @@
-use std::fmt;
-use std::rc::Rc;
+use std::{
+    sync::{Mutex, Arc},
+    fmt,
+};
+
 
 use crate::callables::{
     lax_object::LaxObject,
@@ -34,13 +37,13 @@ pub enum TokenType{
 pub struct Token {
     pub token_type: TokenType,
     pub lexeme: String,
-    pub literal: Rc<Value>,
+    pub literal: Arc<Mutex<Value>>,
     pub line: usize,
 }
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String,
-        literal: Rc<Value>, line: usize) -> Token {
+        literal: Arc<Mutex<Value>>, line: usize) -> Token {
         Token {
             token_type,
             lexeme,
@@ -51,36 +54,46 @@ impl Token {
 }
 
 impl fmt::Display for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "{:?} {} {}", self.token_type, self.lexeme, self.literal)
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?} {} {}", self.token_type, self.lexeme, self.literal.lock().unwrap())
     }
 }
 
 impl fmt::Debug for Token {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self)
     }
 }
 
-#[derive(PartialEq)]
 pub enum Value {
     String(String),
     Num(f64),
     Bool(bool),
     Callable(Callable),
-    LaxObject(LaxObject),
+    LaxObject(Arc<Mutex<LaxObject>>),
+
     None
 }
 
+impl PartialEq for Value {
+    fn eq(&self, other: &Self) -> bool {
+        match (self, other) {
+            (Self::String(a), Self::String(b)) => a == b,
+            (Self::Num(a), Self::Num(b)) => a == b,
+            (Self::Bool(a), Self::Bool(b)) => a == b,
+            _ => false
+        }
+    }
+}
 
 impl fmt::Display for Value {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Value::String(value) => write!(f, "{}", value),
             Value::Num(value) => write!(f, "{}", value),
             Value::Bool(value) => write!(f, "{}", value),
             Value::Callable(value) => write!(f, "{}", value),
-            Value::LaxObject(value) => write!(f, "{}", value),
+            Value::LaxObject(value) => write!(f, "{}", value.lock().unwrap()),
             Value::None => write!(f, "nil"),
         }
     }

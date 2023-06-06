@@ -13,19 +13,27 @@ use crate::{
     callables::callable::FuncType,
 };
 
+enum ClassType {
+    Class,
+    None,
+}
+
 pub struct Resolver<'a> {
     interpreter: &'a mut Interpreter,
     scopes: Vec<HashMap<String, bool>>, //bool represent weather the entry has been resolved yet.
     func_type: FuncType,
+    class_type: ClassType,
     status: &'a mut ErrorStatus,
 }
 
-impl<'a> Resolver<'a> {
-    pub fn new(status: &'a mut ErrorStatus, interpreter: &'a mut Interpreter) -> Self {
+impl<'a> Resolver<'a>  {
+    pub fn new(status: &'a mut ErrorStatus,
+        interpreter: &'a mut Interpreter) -> Self {
         Resolver {
             interpreter,
             scopes: vec!(),
             func_type: FuncType::None,
+            class_type: ClassType::None,
             status
         } 
     }
@@ -159,7 +167,13 @@ impl StmtVisitor for Resolver<'_> {
                 "Can't return from top-level code.");
             self.status.report_runtime_error(error);
         }
+
         if let Some(value) = &stmt.value {
+            if let FuncType::Initializer = self.func_type {
+                let error = RuntimeError::new(stmt.keyword.clone(),
+                    "Can't return a value from an initializer.");
+                self.status.report_runtime_error(error);
+            }
             self.resolve_expr(value);
         }
     }
@@ -170,9 +184,13 @@ impl StmtVisitor for Resolver<'_> {
     }
 
     fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
+        let enclosing_class = mem::replace(&mut self.class_type, ClassType::Class);
         self.declare(stmt.token.clone());
         self.define(stmt.token.clone());
         
+        self.begin_scope();
+        self.scopes.last_mut().unwrap().insert("this".to_string(), true);
+
         for wrapped_method in &stmt.methods {
             let method = match wrapped_method {
                 Stmt::Func(func) => func,
@@ -182,8 +200,14 @@ impl StmtVisitor for Resolver<'_> {
                     continue
                 }
             };
-            self.resolve_func(&method, FuncType::Method)
+            let func_type = match method.token.lexeme == "init" {
+                true => FuncType::Initializer,
+                false => FuncType::Method,
+            };
+            self.resolve_func(&method, func_type);
         }
+        self.end_scope();
+        self.class_type = enclosing_class;
     }
 }
 
@@ -209,7 +233,7 @@ impl ExprVisitor for Resolver<'_> {
         self.resolve_expr(&expr.left);
         self.resolve_expr(&expr.right);
     }
-    
+
     fn visit_call_expr(&mut self, expr: &expr::Call) -> Self::Output {
         self.resolve_expr(&expr.callee);
         for arg in &expr.args {
@@ -239,6 +263,17 @@ impl ExprVisitor for Resolver<'_> {
     fn visit_set_expr(&mut self, expr: &expr::Set) -> Self::Output {
         self.resolve_expr(&expr.value);
         self.resolve_expr(&expr.object);
+    }
+
+    fn visit_this_expr(&mut self, expr: &expr::This) -> Self::Output {
+        match self.class_type {
+            ClassType::None => {
+                let error = RuntimeError::new(expr.keyword.clone(), 
+                        "Can't use 'this' outside of a class.");
+                self.status.report_runtime_error(error);
+            },
+            _ => self.resolve_local(expr.id, expr.keyword.clone()),
+        }
     }
 }
 

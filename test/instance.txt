@@ -1,3 +1,9 @@
-class Bagel {}
-let bagel = Bagel();
-print bagel; // Prints "Bagel instance".
+class Cake {
+  taste() {
+    let adjective = "delicious";
+    print "The " + this.flavor + " cake is " + adjective + "!";
+  }
+}
+let cake = Cake();
+cake.flavor = "German chocolate";
+cake.taste(); // Prints "The German chocolate cake is delicious!".

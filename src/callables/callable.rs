@@ -1,6 +1,6 @@
-use std::rc::Rc;
 use std::sync::{Arc, Mutex};
 use std::fmt;
+use std::collections::HashMap;
 
 use crate::{
     interpreter::Interpreter,
@@ -16,8 +16,8 @@ use crate::{
 };
  
 pub trait Call {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Rc<Value>>
-        ) -> Result<Rc<Value>, RuntimeError>;
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<Mutex<Value>>>
+        ) -> Result<Arc<Mutex<Value>>, RuntimeError>;
 
     fn arity(&self) -> usize;
 }
@@ -26,6 +26,7 @@ pub trait Call {
 pub enum FuncType {
     Function, 
     Method,
+    Initializer,
     None,
 }
 
@@ -36,29 +37,23 @@ pub enum Callable {
 }
 
 impl Callable {
-    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Rc<Value>>
+    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Arc<Mutex<Value>>>
         ) -> Value>, arity: usize) -> Self {
         Callable::NativeFn(NativeFn { name, func, arity })
     }
 
-    pub fn new_lax_fn(declaration: Func, closure: Arc<Mutex<Environment>>) -> Self {
-        Callable::LaxFn(LaxFn { declaration, closure })
+    pub fn new_lax_fn(declaration: Func, closure: Arc<Mutex<Environment>>,
+        is_init: bool) -> Self {
+        Callable::LaxFn(LaxFn::new(declaration, closure, is_init))
     }
 
-    pub fn new_lax_class(name: String) -> Self {
-        Callable::LaxClass(LaxClass { name })
-    }
-}
-
-impl PartialEq for Callable {
-    fn eq(&self, other: &Self) -> bool {
-        // Compare the wrapped function by comparing their addresses
-        std::ptr::eq(&self, &other)
+    pub fn new_lax_class(name: String, methods: HashMap<String, LaxFn>) -> Self {
+        Callable::LaxClass(LaxClass { name, methods })
     }
 }
 
 impl fmt::Display for Callable {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Callable::LaxFn(func) => write!(f, "{}", func),
             Callable::NativeFn(func) => write!(f, "{}", func),

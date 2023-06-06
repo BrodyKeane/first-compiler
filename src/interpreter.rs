@@ -5,13 +5,16 @@ use std::{
     sync::{Arc, Mutex},
 };
 
-use crate::callables::Callable;
 use crate::{
+    callables::{
+        native_functions::NativeDeclarations,
+        lax_functions::LaxFn,
+        Callable,
+    },
     ast::{
         expr::{self, Expr, AcceptExprVisitor, ExprVisitor},
         stmt::{self, Stmt, AcceptStmtVisitor, StmtVisitor},
     },
-    callables::native_functions::NativeDeclarations,
     token::{Value, TokenType},
     environment::Environment,
     error::RuntimeError,
@@ -45,11 +48,11 @@ impl Interpreter {
         Ok(())
     }
 
-    fn execute(&mut self, stmt: &Stmt) -> Result<Option<Rc<Value>>, RuntimeError> {
+    fn execute(&mut self, stmt: &Stmt) -> Result<Option<Arc<Mutex<Value>>>, RuntimeError> {
         stmt.accept(self)
     }
 
-    fn evaluate(&mut self, expr: &Expr) -> Result<Rc<Value>, RuntimeError> {
+    fn evaluate(&mut self, expr: &Expr) -> Result<Arc<Mutex<Value>>, RuntimeError> {
         expr.accept(self)
     }
 
@@ -58,7 +61,7 @@ impl Interpreter {
     }
 
     pub fn execute_block(&mut self, stmts: &Vec<Stmt>, env: Arc<Mutex<Environment>>
-        ) -> Result<Option<Rc<Value>>, RuntimeError> {
+        ) -> Result<Option<Arc<Mutex<Value>>>, RuntimeError> {
         let prev = std::mem::replace(&mut self.environment, env);
         for stmt in stmts {
             if let Some(val) = self.execute(stmt)? {
@@ -71,7 +74,7 @@ impl Interpreter {
     }
 
     fn lookup_variable(&self, token: Rc<Token>, id: u64
-        ) -> Result<Rc<Value>, RuntimeError> {
+        ) -> Result<Arc<Mutex<Value>>, RuntimeError> {
         match self.locals.get(&id) {
             Some(depth) => {
                 self.environment
@@ -83,8 +86,8 @@ impl Interpreter {
         }
     }
 
-    fn is_truthy(&self, value: &Value) -> bool {
-        match value {
+    fn is_truthy(&self, value: &Arc<Mutex<Value>>) -> bool {
+        match value.lock().unwrap().deref() {
             Value::Bool(val) => val.to_owned(),
             Value::None => false,
             _ => true,
@@ -93,7 +96,7 @@ impl Interpreter {
 }
 
 impl ExprVisitor for Interpreter {
-    type Output = Result<Rc<Value>, RuntimeError>;
+    type Output = Result<Arc<Mutex<Value>>, RuntimeError>;
 
     fn visit_literal_expr(&mut self, expr: &expr::Literal
         ) -> Self::Output {
@@ -108,26 +111,28 @@ impl ExprVisitor for Interpreter {
     fn visit_unary_expr(&mut self, expr: &expr::Unary
         ) -> Self::Output {
         let binding = self.evaluate(&expr.right)?;
-        let output = binding.deref();
+        let output = binding.lock().unwrap();
         let token_type = &expr.operator.token_type;
-        Ok(Rc::new( match (output, token_type) {
+
+        let value = match (output.deref(), token_type) {
             (Value::Num(val), TokenType::Minus) => Value::Num(-val),
             (_, TokenType::Minus) => return Err(
                 RuntimeError::new(expr.operator.clone(), "Operand must be a number.")
             ),
-            (val, TokenType::Bang) => Value::Bool(!self.is_truthy(val)),
+            (_, TokenType::Bang) => Value::Bool(!self.is_truthy(&binding)),
             _ => Value::None,
-        }))
+        };
+        Ok(Arc::new(Mutex::new(value)))
     }
 
     fn visit_binary_expr(&mut self, expr: &expr::Binary
         ) -> Self::Output {
         let binding = self.evaluate(&expr.left)?;
-        let left = binding.deref();
+        let left = binding.lock().unwrap();
         let binding = self.evaluate(&expr.right)?;
-        let right = binding.deref();
+        let right = binding.lock().unwrap();
         let token_type = &expr.operator.token_type;
-        let value = match (left, right) {
+        let value = match (left.deref(), right.deref()) {
             (Value::Num(left), Value::Num(right)) => match token_type {
                 TokenType::Plus => Value::Num(left + right),
                 TokenType::Minus => Value::Num(left - right),
@@ -162,7 +167,7 @@ impl ExprVisitor for Interpreter {
                 ))
             }
         };
-        Ok(Rc::new(value))
+        Ok(Arc::new(Mutex::new(value)))
     }
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
@@ -203,8 +208,9 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_call_expr(&mut self, expr: &expr::Call) -> Self::Output {
-        let callee = self.evaluate(&expr.callee)?;
-        let function = match callee.as_ref() {
+        let binding = self.evaluate(&expr.callee)?;
+        let callee = binding.lock().unwrap();
+        let function = match callee.deref() {
             Value::Callable(callee) => callee,
             _ => {
                 let message = "Can only call functions and classes.";
@@ -226,31 +232,41 @@ impl ExprVisitor for Interpreter {
     }
 
     fn visit_get_expr(&mut self, expr: &expr::Get) -> Self::Output {
-        let value = self.evaluate(&expr.object)?;
-        match value.as_ref() { 
-            Value::LaxObject(object) => Ok(object.get(expr.token.clone())?),
+        let binding = self.evaluate(&expr.object)?;
+        let value = binding.lock().unwrap();
+        match value.deref() { 
+            Value::LaxObject(object) => {
+                Ok(object.lock().unwrap().get(expr.token.clone(), Arc::clone(&binding))?)
+            },
             _ => Err(RuntimeError::new(expr.token.clone(), 
                     "Only instances have properties."))
         }
     }
 
     fn visit_set_expr(&mut self, expr: &expr::Set) -> Self::Output {
-        let value = self.evaluate(&expr.object)?;
+        let binding = self.evaluate(&expr.object)?;
+        let value = binding.lock().unwrap();
 
-        let mut object = match value.as_ref() {
-            Value::LaxObject(object)=> object,
+        let object = match value.deref() {
+            Value::LaxObject(object) => object.clone(),
             _ => return Err(RuntimeError::new(expr.token.clone(), 
                             "Only instances have fields."))
         };
         
         let value = self.evaluate(&expr.value)?;
-        object.set(expr.token.clone(), value.clone());
+        object.lock()
+            .unwrap()
+            .set(expr.token.clone(), value.clone());
         Ok(value)
+    }
+
+    fn visit_this_expr(&mut self, expr: &expr::This) -> Self::Output {
+        self.lookup_variable(expr.keyword.clone(), expr.id)
     }
 }
 
 impl StmtVisitor for Interpreter {
-    type Output = Result<Option<Rc<Value>>, RuntimeError>;
+    type Output = Result<Option<Arc<Mutex<Value>>>, RuntimeError>;
 
     fn visit_expr_stmt(&mut self, stmt: &stmt::StmtExpr
         ) -> Self::Output {
@@ -260,7 +276,8 @@ impl StmtVisitor for Interpreter {
 
     fn visit_print_stmt(&mut self, stmt: &stmt::Print
         ) -> Self::Output {
-        let value = self.evaluate(&stmt.expr)?;
+        let binding = self.evaluate(&stmt.expr)?;
+        let value = binding.lock().unwrap();
         println!("{}", value);
         Ok(None)
     }
@@ -268,7 +285,7 @@ impl StmtVisitor for Interpreter {
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
         let value = match &stmt.initializer {
             Some(expr) => self.evaluate(expr)?,
-            None => Rc::new(Value::None),
+            None => Arc::new(Mutex::new(Value::None)),
         };
         self.environment
             .lock()
@@ -310,8 +327,8 @@ impl StmtVisitor for Interpreter {
     fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
         let env = Arc::clone(&self.environment);
         let name = stmt.token.lexeme.clone();
-        let func = Callable::new_lax_fn(stmt.clone(), env);
-        let value = Rc::new(Value::Callable(func));
+        let func = Callable::new_lax_fn(stmt.clone(), env, false);
+        let value = Arc::new(Mutex::new(Value::Callable(func)));
         self.environment.lock().unwrap().define(name, value);
         Ok(None)
     }
@@ -328,10 +345,26 @@ impl StmtVisitor for Interpreter {
         self.environment
             .lock()
             .unwrap()
-            .define(stmt.token.lexeme.clone(), Rc::new(Value::None));
+            .define(stmt.token.lexeme.clone(), Arc::new(Mutex::new(Value::None)));
         let name = stmt.token.lexeme.clone();
-        let class = Callable::new_lax_class(name);
-        let value = Rc::new(Value::Callable(class));
+
+        let mut methods: HashMap<String, LaxFn> = HashMap::new();
+        for wrapped_method in &stmt.methods {
+            let method = match wrapped_method {
+                Stmt::Func(func) => func.clone(),
+                _ => return Err(
+                    RuntimeError::new(stmt.token.clone(), "Undefined method")
+                )
+            };
+            let name = method.token.lexeme.clone();
+
+            let is_init = method.token.lexeme == "init";
+            let function = LaxFn::new(method, self.environment.clone(), is_init);
+            methods.insert(name, function);
+        }
+
+        let class = Callable::new_lax_class(name, methods);
+        let value = Arc::new(Mutex::new(Value::Callable(class)));
         self.environment.lock().unwrap().assign(stmt.token.clone(), value)?;
         Ok(None)
     }

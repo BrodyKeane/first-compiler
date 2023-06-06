@@ -1,4 +1,7 @@
-use std::rc::Rc;
+use std::{
+    sync::{Arc, Mutex},
+    rc::Rc,
+};
 
 use crate::{
     token::{Token, TokenType, Value},
@@ -101,7 +104,7 @@ impl<'a> Parser<'a> {
         };
 
         let condition = match self.check(TokenType::Semicolon) {
-            true => Expr::new_literal(Rc::new(Value::Bool(true))),
+            true => Expr::new_literal(Arc::new(Mutex::new(Value::Bool(true)))),
             false => self.expression()?,
         };
         self.consume(TokenType::Semicolon, 
@@ -337,13 +340,13 @@ impl<'a> Parser<'a> {
     fn primary(&mut self) -> Result<Expr, ParseError> {
         let expr = match self.advance().token_type {
             TokenType::False => 
-                Expr::new_literal(Rc::new(Value::Bool(false))),
+                Expr::new_literal(Arc::new(Mutex::new(Value::Bool(false)))),
                 
             TokenType::True => 
-                Expr::new_literal(Rc::new(Value::Bool(true))),
+                Expr::new_literal(Arc::new(Mutex::new(Value::Bool(true)))),
 
             TokenType::Nil => 
-                Expr::new_literal(Rc::new(Value::None)),
+                Expr::new_literal(Arc::new(Mutex::new(Value::None))),
 
             TokenType::Number | TokenType::String =>
                 Expr::new_literal(self.previous().literal.clone()),
@@ -353,6 +356,9 @@ impl<'a> Parser<'a> {
 
             TokenType::OpenParen => 
                 Expr::new_grouping(self.grouping()?),
+
+            TokenType::This => 
+                Expr::new_this(self.previous()),
 
             _ => return Err(
                 ParseError::new(self.previous(), "Expected expression.")

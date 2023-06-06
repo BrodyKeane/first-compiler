@@ -25,7 +25,7 @@ pub trait StmtVisitor {
 }
 
 #[derive(Clone)]
-pub enum Stmt{
+pub enum Stmt {
     StmtExpr(StmtExpr),
     Print(Print),
     Let(Let),
@@ -153,13 +153,13 @@ pub struct Class {
 }
 
 impl fmt::Display for Func {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.token)
     }
 }
 
 impl fmt::Display for Class {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "{}", self.token)
     }
 }

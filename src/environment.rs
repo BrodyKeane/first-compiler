@@ -9,7 +9,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Environment {
-    pub values: HashMap<String, Rc<Value>>,
+    pub values: HashMap<String, Arc<Mutex<Value>>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,
 }
 
@@ -26,13 +26,13 @@ impl Environment {
         Arc::new(Mutex::new(Environment::new(enclosing)))
     }
     
-    pub fn define(&mut self, name: String, value: Rc<Value>) {
+    pub fn define(&mut self, name: String, value: Arc<Mutex<Value>>) {
         self.values.insert(name, value);
     }
 
     //check innermost env for var else recursively check outer env 
     pub fn get(&self, token: Rc<Token>
-        ) -> Result<Rc<Value> , RuntimeError> {
+        ) -> Result<Arc<Mutex<Value>> , RuntimeError> {
         if let Some(name) = self.values.get(&token.lexeme) {
             return Ok(name.clone())
         }
@@ -47,7 +47,7 @@ impl Environment {
     }
 
     pub fn get_at(&self, distance: usize, token: Rc<Token>
-        ) -> Result<Rc<Value> , RuntimeError> {
+        ) -> Result<Arc<Mutex<Value>> , RuntimeError> {
         let value = match self.ancestor(distance) {
             Some(env) => { 
                 env.lock()
@@ -71,7 +71,7 @@ impl Environment {
     }
 
     //check innermost env for var else recursively check outer env 
-    pub fn assign(&mut self, token: Rc<Token>, value: Rc<Value>
+    pub fn assign(&mut self, token: Rc<Token>, value: Arc<Mutex<Value>>
         ) -> Result<(), RuntimeError>{
         let entry = self.values.entry(token.lexeme.clone());
 
@@ -89,7 +89,7 @@ impl Environment {
         }
     }
 
-    pub fn assign_at(&mut self, distance: usize, token: Rc<Token>, value: Rc<Value>
+    pub fn assign_at(&mut self, distance: usize, token: Rc<Token>, value: Arc<Mutex<Value>>
         ) -> Result<(), RuntimeError> {
         match self.ancestor(distance) {
             Some(env) => { 

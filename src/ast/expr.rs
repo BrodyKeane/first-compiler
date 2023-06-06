@@ -1,7 +1,13 @@
 use lazy_static::lazy_static;
 
-use std::rc::Rc;
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::{
+    rc::Rc,
+    sync::{
+        atomic::{AtomicU64, Ordering},
+        Arc,
+        Mutex,
+    },
+};
 
 use crate::token::{Token, Value};
 
@@ -22,8 +28,8 @@ pub trait ExprVisitor {
     fn visit_call_expr(&mut self, expr: &Call) -> Self::Output;
     fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
     fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
+    fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
-//    fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
 }
 
 #[derive(Clone)]
@@ -38,6 +44,7 @@ pub enum Expr {
     Call(Call),
     Get(Get),
     Set(Set),
+    This(This),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -53,6 +60,7 @@ impl AcceptExprVisitor for Expr {
             Expr::Call(expr) => visitor.visit_call_expr(expr),
             Expr::Get(expr) => visitor.visit_get_expr(expr),
             Expr::Set(expr) => visitor.visit_set_expr(expr),
+            Expr::This(expr) => visitor.visit_this_expr(expr),
         }
     }
 }
@@ -76,7 +84,7 @@ impl Expr {
         })
     }
 
-    pub fn new_literal(value: Rc<Value>) -> Self {
+    pub fn new_literal(value: Arc<Mutex<Value>>) -> Self {
         let id = ID_GENERATOR.generate_id();
         Expr::Literal(Literal { id, value })
     }
@@ -145,6 +153,11 @@ impl Expr {
             value: Box::new(value),
         })
     }
+
+    pub fn new_this(keyword: Rc<Token>) -> Self {
+        let id = ID_GENERATOR.generate_id();
+        Expr::This(This { id, keyword } )
+    }
 }
 
 lazy_static! {
@@ -185,7 +198,7 @@ pub struct Grouping {
 #[derive(Clone)]
 pub struct Literal {
     pub id: u64,
-    pub value: Rc<Value>,
+    pub value: Arc<Mutex<Value>>,
 }
 
 #[derive(Clone)]
@@ -237,4 +250,10 @@ pub struct Set {
     pub object:  Box<Expr>,
     pub token: Rc<Token>,
     pub value: Box<Expr>,
+}
+
+#[derive(Clone)]
+pub struct This {
+    pub id: u64,
+    pub keyword: Rc<Token>,
 }

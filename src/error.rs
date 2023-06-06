@@ -45,7 +45,7 @@ impl RuntimeError {
 impl Error for RuntimeError {}
 
 impl fmt::Display for RuntimeError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[line {}] {}", self.token.line, self.message)
     }
 }
@@ -65,7 +65,7 @@ impl ScanError {
 impl Error for ScanError {}
 
 impl fmt::Display for ScanError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         write!(f, "[line {}] Error: {}", self.line, self.message)
     }
 }
@@ -85,7 +85,7 @@ impl ParseError {
 impl Error for ParseError {}
 
 impl fmt::Display for ParseError {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self.token.token_type == TokenType::Eof {
             true => {
                 write!(f, "[line {}] Error at end: {}",

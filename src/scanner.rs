@@ -1,4 +1,7 @@
-use std::rc::Rc;
+use std::{
+    sync::{Mutex, Arc},
+    rc::Rc,
+};
 
 use crate::{
     token::{Token, TokenType, Value},
@@ -15,7 +18,7 @@ pub struct Scanner<'a> {
 }
 
 impl<'a> Scanner<'a> {
-    pub fn new(status: &'a mut ErrorStatus, source: String,) -> Scanner {
+    pub fn new(status: &'a mut ErrorStatus, source: String,) -> Scanner<'a> {
         Scanner {
             source,
             tokens: vec!(),
@@ -37,7 +40,7 @@ impl<'a> Scanner<'a> {
         let end_token = Rc::new(Token::new(
             TokenType::Eof,
             String::new(),
-            Rc::new(Value::None),
+            Arc::new(Mutex::new(Value::None)),
             self.line
         ));
 
@@ -111,7 +114,7 @@ impl<'a> Scanner<'a> {
 
         self.add_literal_token(
             TokenType::String,
-            Rc::new(Value::String(value))
+            Arc::new(Mutex::new(Value::String(value)))
         );
         Ok(())
     }
@@ -133,7 +136,7 @@ impl<'a> Scanner<'a> {
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,
-                Rc::new(Value::Num(n))
+                Arc::new(Mutex::new(Value::Num(n)))
             ),
             Err(_) => return Err(
                 ScanError::new(self.line, "Failed to parse number.")
@@ -177,16 +180,16 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, Rc::new(Value::None))
+        self.push_token(token_type, Arc::new(Mutex::new(Value::None)))
     }
 
     fn add_literal_token(
-        &mut self, token_type: TokenType, literal: Rc<Value>) {
+        &mut self, token_type: TokenType, literal: Arc<Mutex<Value>>) {
         self.push_token(token_type, literal) 
     }
 
     fn push_token(
-        &mut self, token_type: TokenType, literal: Rc<Value>) {
+        &mut self, token_type: TokenType, literal: Arc<Mutex<Value>>) {
         let text = self.source[self.start..self.current].to_string();
         let token = Rc::new(Token::new(
             token_type,
