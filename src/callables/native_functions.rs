@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
     time::SystemTime,
     fmt,
 };
@@ -13,16 +13,16 @@ use crate::{
 };
 
 pub struct NativeFn {
-    pub func: Box<dyn Fn(&Interpreter, Vec<Arc<Mutex<Value>>>) -> Value>,
+    pub func: Box<dyn Fn(&Interpreter, Vec<Arc<RwLock<Value>>>) -> Value>,
     pub arity: usize,
     pub name: String,
 }
 
 impl Call for NativeFn {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<Mutex<Value>>>
-        ) -> Result<Arc<Mutex<Value>>, RuntimeError> {
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<RwLock<Value>>>
+        ) -> Result<Arc<RwLock<Value>>, RuntimeError> {
         let value = (self.func)(interpreter, args);
-        Ok(Arc::new(Mutex::new(value)))
+        Ok(Arc::new(RwLock::new(value)))
     }
 
     fn arity(&self) -> usize {
@@ -51,7 +51,7 @@ impl NativeDeclarations {
     }
 
     fn declare_clock(&mut self) {
-        let clock_fn = |_: &Interpreter, _: Vec<Arc<Mutex<Value>>>| -> Value {
+        let clock_fn = |_: &Interpreter, _: Vec<Arc<RwLock<Value>>>| -> Value {
             let current_time = SystemTime::now()
                 .duration_since(SystemTime::UNIX_EPOCH)
                 .expect("Failed to get current time")
@@ -60,9 +60,14 @@ impl NativeDeclarations {
         };
         let name = "clock".to_string();
         let callable = Callable::new_native_fn(name.clone(), Box::new(clock_fn), 0);
-        let value = Arc::new(Mutex::new(Value::Callable(callable)));
+        let value = Arc::new(RwLock::new(Value::Callable(callable)));
         self.globals.lock().unwrap().define(name, value);
     }
+}
 
+impl fmt::Debug for NativeFn {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Native Function: {}", self.name)
+    }
 }
 

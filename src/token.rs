@@ -1,5 +1,6 @@
 use std::{
-    sync::{Mutex, Arc},
+    sync::{RwLock, Arc, Mutex},
+    rc::Rc,
     fmt,
 };
 
@@ -36,14 +37,14 @@ pub enum TokenType{
 
 pub struct Token {
     pub token_type: TokenType,
-    pub lexeme: String,
-    pub literal: Arc<Mutex<Value>>,
+    pub lexeme: Rc<String>,
+    pub literal: Arc<RwLock<Value>>,
     pub line: usize,
 }
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String,
-        literal: Arc<Mutex<Value>>, line: usize) -> Token {
+    pub fn new(token_type: TokenType, lexeme: Rc<String>,
+        literal: Arc<RwLock<Value>>, line: usize) -> Token {
         Token {
             token_type,
             lexeme,
@@ -55,7 +56,7 @@ impl Token {
 
 impl fmt::Display for Token {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
-        write!(f, "{:?} {} {}", self.token_type, self.lexeme, self.literal.lock().unwrap())
+        write!(f, "{:?} {} {}", self.token_type, self.lexeme, self.literal.read().unwrap())
     }
 }
 
@@ -65,6 +66,7 @@ impl fmt::Debug for Token {
     }
 }
 
+#[derive(Debug)]
 pub enum Value {
     String(String),
     Num(f64),

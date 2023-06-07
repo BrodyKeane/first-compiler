@@ -1,5 +1,5 @@
 use std::{
-    sync::{Mutex, Arc},
+    sync::{Arc, RwLock},
     rc::Rc,
 };
 
@@ -39,8 +39,8 @@ impl<'a> Scanner<'a> {
 
         let end_token = Rc::new(Token::new(
             TokenType::Eof,
-            String::new(),
-            Arc::new(Mutex::new(Value::None)),
+            Rc::new(String::new()),
+            Arc::new(RwLock::new(Value::None)),
             self.line
         ));
 
@@ -114,7 +114,7 @@ impl<'a> Scanner<'a> {
 
         self.add_literal_token(
             TokenType::String,
-            Arc::new(Mutex::new(Value::String(value)))
+            Arc::new(RwLock::new(Value::String(value)))
         );
         Ok(())
     }
@@ -136,7 +136,7 @@ impl<'a> Scanner<'a> {
         match num {
             Ok(n) => self.add_literal_token(
                 TokenType::Number,
-                Arc::new(Mutex::new(Value::Num(n)))
+                Arc::new(RwLock::new(Value::Num(n)))
             ),
             Err(_) => return Err(
                 ScanError::new(self.line, "Failed to parse number.")
@@ -180,20 +180,20 @@ impl<'a> Scanner<'a> {
     }
 
     fn add_token(&mut self, token_type: TokenType) {
-        self.push_token(token_type, Arc::new(Mutex::new(Value::None)))
+        self.push_token(token_type, Arc::new(RwLock::new(Value::None)))
     }
 
     fn add_literal_token(
-        &mut self, token_type: TokenType, literal: Arc<Mutex<Value>>) {
+        &mut self, token_type: TokenType, literal: Arc<RwLock<Value>>) {
         self.push_token(token_type, literal) 
     }
 
     fn push_token(
-        &mut self, token_type: TokenType, literal: Arc<Mutex<Value>>) {
+        &mut self, token_type: TokenType, literal: Arc<RwLock<Value>>) {
         let text = self.source[self.start..self.current].to_string();
         let token = Rc::new(Token::new(
             token_type,
-            text,
+            Rc::new(text),
             literal,
             self.line,
         ));

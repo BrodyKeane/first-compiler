@@ -1,6 +1,9 @@
-use std::sync::{Arc, Mutex};
-use std::fmt;
-use std::collections::HashMap;
+use std::{
+    sync::{Arc, Mutex, RwLock},
+    collections::HashMap,
+    rc::Rc,
+    fmt,
+};
 
 use crate::{
     interpreter::Interpreter,
@@ -16,8 +19,8 @@ use crate::{
 };
  
 pub trait Call {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<Mutex<Value>>>
-        ) -> Result<Arc<Mutex<Value>>, RuntimeError>;
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<RwLock<Value>>>
+        ) -> Result<Arc<RwLock<Value>>, RuntimeError>;
 
     fn arity(&self) -> usize;
 }
@@ -30,6 +33,7 @@ pub enum FuncType {
     None,
 }
 
+#[derive(Debug)]
 pub enum Callable {
     NativeFn(NativeFn),
     LaxFn(LaxFn),
@@ -37,7 +41,7 @@ pub enum Callable {
 }
 
 impl Callable {
-    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Arc<Mutex<Value>>>
+    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Arc<RwLock<Value>>>
         ) -> Value>, arity: usize) -> Self {
         Callable::NativeFn(NativeFn { name, func, arity })
     }
@@ -47,7 +51,7 @@ impl Callable {
         Callable::LaxFn(LaxFn::new(declaration, closure, is_init))
     }
 
-    pub fn new_lax_class(name: String, methods: HashMap<String, LaxFn>) -> Self {
+    pub fn new_lax_class(name: Rc<String>, methods: HashMap<String, LaxFn>) -> Self {
         Callable::LaxClass(LaxClass { name, methods })
     }
 }

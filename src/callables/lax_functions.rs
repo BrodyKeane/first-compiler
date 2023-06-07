@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
 use std::fmt;
 
 use crate::{
@@ -16,7 +16,7 @@ use crate::{
 
 use super::Call;
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct LaxFn {
     pub declaration: Func,
     pub closure: Arc<Mutex<Environment>>,
@@ -29,7 +29,7 @@ impl LaxFn {
         LaxFn { declaration , closure, is_init}
     }
 
-    pub fn bind(&self, object: Arc<Mutex<Value>>) -> Self {
+    pub fn bind(&self, object: Arc<RwLock<Value>>) -> Self {
         let mut env = Environment::new(Some(Arc::clone(&self.closure)));
         env.define("this".to_string(), object);
         let env = Arc::new(Mutex::new(env));
@@ -38,13 +38,13 @@ impl LaxFn {
 }
 
 impl Call for LaxFn {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<Mutex<Value>>>
-        ) -> Result<Arc<Mutex<Value>>, RuntimeError> {
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<RwLock<Value>>>
+        ) -> Result<Arc<RwLock<Value>>, RuntimeError> {
         let env = Environment::new_wrapped(Some(Arc::clone(&self.closure)));
         let params = &self.declaration.params;
         for (i, param) in params.iter().enumerate() {
-            let arg = args.get(i).unwrap().clone();
-            env.lock().unwrap().define(param.lexeme.clone(), arg);
+            let arg = Arc::clone(args.get(i).unwrap());
+            env.lock().unwrap().define(param.lexeme.to_string(), arg);
         }
 
         let output = interpreter.execute_block(&self.declaration.body, env)?;
@@ -55,14 +55,14 @@ impl Call for LaxFn {
         if self.is_init {
             let sudo_token = Token::new(
                 TokenType::Fn,
-                "this".to_string(),
-                Arc::new(Mutex::new(Value::None)),
+                Rc::new("this".to_string()),
+                Arc::new(RwLock::new(Value::None)),
                 0
             );
             return self.closure.lock().unwrap().get_at(0, Rc::new(sudo_token))
         }
 
-        Ok(Arc::new(Mutex::new(Value::None)))
+        Ok(Arc::new(RwLock::new(Value::None)))
     }
 
     fn arity(&self) -> usize {

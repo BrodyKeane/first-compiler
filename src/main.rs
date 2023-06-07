@@ -21,20 +21,29 @@ mod resolver;
 mod interpreter;
 mod environment;
 mod callables;
+mod test;
+
+pub mod test_file {
+    use super::Lax;
+    pub fn test_file(path: &str) {
+        let mut session = Lax::new();
+        session.run_file(path.to_string());
+    }
+}
 
 fn main() {
     let args: Vec<String> = env::args().skip(1).collect();
     let mut session = Lax::new();
     match args.len() {
         0 => session.run_prompt(),
-        1 => session.run_file(&args[0]),
+        1 => session.run_file(args[0].to_string()),
         num_args => {
             eprintln!("Expected 1 argument but {} were given", num_args);
             process::exit(64);
         },
     };
-    
 }
+
 
 struct Lax {
     interpreter: Interpreter,
@@ -48,7 +57,7 @@ impl Lax {
             status: ErrorStatus::new() 
         }
     }
-    pub fn run_file(&mut self, path: &String) {
+    pub fn run_file(&mut self, path: String) {
         let source = match fs::read_to_string(path) {
             Ok(file) => file,
             Err(_) => {
@@ -96,3 +105,5 @@ impl Lax {
         }
     }
 }
+
+

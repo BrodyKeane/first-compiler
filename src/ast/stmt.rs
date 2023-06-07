@@ -24,7 +24,7 @@ pub trait StmtVisitor {
     fn visit_class_stmt(&mut self, stmt: &Class) -> Self::Output;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Stmt {
     StmtExpr(StmtExpr),
     Print(Print),
@@ -62,7 +62,8 @@ impl Stmt {
         Self::Print(Print{ expr })
     }
 
-    pub fn new_let(token: Rc<Token>, initializer: Option<Expr>) -> Self {
+    pub fn new_let(token: Rc<Token>, initializer: Option<Expr>
+        ) -> Self {
         Self::Let(Let{ token, initializer })
     }
 
@@ -70,7 +71,8 @@ impl Stmt {
         Self::Block(Block{ stmts })
     }
 
-    pub fn new_if(condition: Expr, body: Stmt, else_body: Option<Stmt>) -> Self {
+    pub fn new_if(condition: Expr, body: Stmt,
+        else_body: Option<Stmt>) -> Self {
         let else_body = else_body.map(|s| Box::new(s));
         Self::If(If{
             condition,
@@ -86,7 +88,8 @@ impl Stmt {
         })
     }
 
-    pub fn new_func(token: Rc<Token>, params: Vec<Rc<Token>>, body: Vec<Stmt>) -> Self {
+    pub fn new_func(token: Rc<Token>, params: Vec<Rc<Token>>,
+        body: Vec<Stmt>) -> Self {
         Self::Func(Func { token, params, body })
     }
 
@@ -94,62 +97,64 @@ impl Stmt {
         Self::Return(Return { keyword, value })
     }
 
-    pub fn new_class(token: Rc<Token>, methods: Vec<Stmt>) -> Self {
-        Self::Class(Class { token , methods })
+    pub fn new_class(token: Rc<Token>, methods: Vec<Stmt>,
+        superclass: Option<Expr>) -> Self {
+        Self::Class(Class { token , methods, superclass })
     }
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct StmtExpr {
     pub expr: Expr
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Print {
     pub expr: Expr
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Let {
     pub token: Rc<Token>,
     pub initializer: Option<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Block {
     pub stmts: Vec<Stmt>
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct If {
     pub condition: Expr,
     pub body: Box<Stmt>,
     pub else_body: Option<Box<Stmt>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct While {
     pub condition: Expr,
     pub body: Box<Stmt>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Return {
     pub keyword: Rc<Token>,
     pub value: Option<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Func {
     pub token: Rc<Token>,
     pub params: Vec<Rc<Token>>,
     pub body: Vec<Stmt>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Class {
     pub token: Rc<Token>,
     pub methods: Vec<Stmt>,
+    pub superclass: Option<Expr>,
 }
 
 impl fmt::Display for Func {

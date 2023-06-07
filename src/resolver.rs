@@ -61,7 +61,7 @@ impl<'a> Resolver<'a>  {
     fn resolve_local(&mut self, id: u64, token: Rc<Token>) {
         let scopes = self.scopes.iter().rev().enumerate();
         for (depth, scope) in scopes {
-            if scope.contains_key(&token.lexeme) {
+            if scope.contains_key(&token.lexeme.to_string()) {
                 self.interpreter.resolve(id, depth);
                 return
             }
@@ -73,8 +73,8 @@ impl<'a> Resolver<'a>  {
 
         self.begin_scope();
         for param in &func.params {
-            self.declare(param.clone());
-            self.define(param.clone());
+            self.declare(Rc::clone(param));
+            self.define(Rc::clone(param));
         }
         self.resolve_stmts(&func.body);
         self.end_scope();
@@ -95,27 +95,27 @@ impl<'a> Resolver<'a>  {
             Some(scope) => scope,
             None => return
         };
-        if scope.contains_key(&token.lexeme) {
-            let error = RuntimeError::new(token.clone(),
+        if scope.contains_key(&token.lexeme.to_string()) {
+            let error = RuntimeError::new(Rc::clone(&token),
                 "Already variable with this name declared in this scope."
             );
             self.status.report_runtime_error(error)
         }
-        scope.insert(token.lexeme.clone(), false);
+        scope.insert(token.lexeme.to_string(), false);
     }
 
     fn define(&mut self, token: Rc<Token>) {
         if let Some(scope) = self.scopes.last_mut() {
-            scope.insert(token.lexeme.clone(), true);
+            scope.insert(token.lexeme.to_string(), true);
         }
     }
 
-    fn is_accessed_in_initializer(&self, var_name: String) -> bool {
+    fn is_accessed_in_initializer(&self, var_name: Rc<String>) -> bool {
         let scope = match self.scopes.last() {
             Some(scope) => scope,
             None => return false,
         };
-        match scope.get(&var_name) {
+        match scope.get(&var_name.to_string()) {
             Some(resolved) => !*resolved,
             None => false,
         }
@@ -132,16 +132,16 @@ impl StmtVisitor for Resolver<'_> {
     }
 
     fn visit_let_stmt(&mut self, stmt: &stmt::Let) -> Self::Output {
-        self.declare(stmt.token.clone());
+        self.declare(Rc::clone(&stmt.token));
         if let Some(init) = &stmt.initializer {
             self.resolve_expr(init);
         }
-        self.define(stmt.token.clone());
+        self.define(Rc::clone(&stmt.token));
     }
 
     fn visit_func_stmt(&mut self, stmt: &stmt::Func) -> Self::Output {
-        self.declare(stmt.token.clone());
-        self.define(stmt.token.clone());
+        self.declare(Rc::clone(&stmt.token));
+        self.define(Rc::clone(&stmt.token));
         self.resolve_func(stmt, FuncType::Function);
     }
 
@@ -163,14 +163,14 @@ impl StmtVisitor for Resolver<'_> {
 
     fn visit_return_stmt(&mut self, stmt: &stmt::Return) -> Self::Output {
         if let FuncType::None = self.func_type {
-            let error = RuntimeError::new(stmt.keyword.clone(),
+            let error = RuntimeError::new(Rc::clone(&stmt.keyword),
                 "Can't return from top-level code.");
             self.status.report_runtime_error(error);
         }
 
         if let Some(value) = &stmt.value {
             if let FuncType::Initializer = self.func_type {
-                let error = RuntimeError::new(stmt.keyword.clone(),
+                let error = RuntimeError::new(Rc::clone(&stmt.keyword),
                     "Can't return a value from an initializer.");
                 self.status.report_runtime_error(error);
             }
@@ -185,8 +185,19 @@ impl StmtVisitor for Resolver<'_> {
 
     fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
         let enclosing_class = mem::replace(&mut self.class_type, ClassType::Class);
-        self.declare(stmt.token.clone());
-        self.define(stmt.token.clone());
+        self.declare(Rc::clone(&stmt.token));
+        self.define(Rc::clone(&stmt.token));
+
+        if let Some(expr) = &stmt.superclass {
+            if let Expr::Var(class) = expr {
+                if stmt.token.lexeme == class.token.lexeme {
+                    let error = RuntimeError::new(Rc::clone(&class.token), 
+                        "A class can't inherit from itself.");
+                    self.status.report_runtime_error(error);
+                }
+            self.resolve_expr(expr);
+            }
+        }
         
         self.begin_scope();
         self.scopes.last_mut().unwrap().insert("this".to_string(), true);
@@ -195,12 +206,13 @@ impl StmtVisitor for Resolver<'_> {
             let method = match wrapped_method {
                 Stmt::Func(func) => func,
                 _ => {
-                    let error = RuntimeError::new(stmt.token.clone(), "Undefined method");
+                    let error = RuntimeError::new(Rc::clone(&stmt.token), "Undefined method");
                     self.status.report_runtime_error(error);
                     continue
                 }
             };
-            let func_type = match method.token.lexeme == "init" {
+            let lexeme = method.token.lexeme.as_str();
+            let func_type = match lexeme == "init" {
                 true => FuncType::Initializer,
                 false => FuncType::Method,
             };
@@ -215,18 +227,18 @@ impl ExprVisitor for Resolver<'_> {
     type Output = ();
 
     fn visit_var_expr(&mut self, expr: &expr::Var) -> Self::Output {
-        if self.is_accessed_in_initializer(expr.token.lexeme.clone()) {
-            let error = ParseError::new(expr.token.clone(),
+        if self.is_accessed_in_initializer(Rc::clone(&expr.token.lexeme)) {
+            let error = ParseError::new(Rc::clone(&expr.token),
                 "Can't read local variable in its own initializer."
             );
             self.status.report_compile_error(error);
         }
-        self.resolve_local(expr.id, expr.token.clone());
+        self.resolve_local(expr.id, Rc::clone(&expr.token));
     }
 
     fn visit_assign_expr(&mut self, expr: &expr::Assign) -> Self::Output {
         self.resolve_expr(&expr.value);
-        self.resolve_local(expr.id, expr.token.clone());
+        self.resolve_local(expr.id, Rc::clone(&expr.token));
     }
 
     fn visit_binary_expr(&mut self, expr: &expr::Binary) -> Self::Output {
@@ -268,11 +280,11 @@ impl ExprVisitor for Resolver<'_> {
     fn visit_this_expr(&mut self, expr: &expr::This) -> Self::Output {
         match self.class_type {
             ClassType::None => {
-                let error = RuntimeError::new(expr.keyword.clone(), 
+                let error = RuntimeError::new(Rc::clone(&expr.keyword), 
                         "Can't use 'this' outside of a class.");
                 self.status.report_runtime_error(error);
             },
-            _ => self.resolve_local(expr.id, expr.keyword.clone()),
+            _ => self.resolve_local(expr.id, Rc::clone(&expr.keyword)),
         }
     }
 }

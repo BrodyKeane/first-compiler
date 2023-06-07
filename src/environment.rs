@@ -1,6 +1,7 @@
 use std::collections::{hash_map::Entry, HashMap};
 use std::rc::Rc;
-use std::sync::{Arc, Mutex};
+use std::sync::{Arc, Mutex, RwLock};
+use std::fmt;
 
 use crate::{
     token::{Value, Token},
@@ -9,7 +10,7 @@ use crate::{
 
 #[derive(Clone)]
 pub struct Environment {
-    pub values: HashMap<String, Arc<Mutex<Value>>>,
+    pub values: HashMap<String, Arc<RwLock<Value>>>,
     pub enclosing: Option<Arc<Mutex<Environment>>>,
 }
 
@@ -26,18 +27,18 @@ impl Environment {
         Arc::new(Mutex::new(Environment::new(enclosing)))
     }
     
-    pub fn define(&mut self, name: String, value: Arc<Mutex<Value>>) {
+    pub fn define(&mut self, name: String, value: Arc<RwLock<Value>>) {
         self.values.insert(name, value);
     }
 
     //check innermost env for var else recursively check outer env 
     pub fn get(&self, token: Rc<Token>
-        ) -> Result<Arc<Mutex<Value>> , RuntimeError> {
-        if let Some(name) = self.values.get(&token.lexeme) {
-            return Ok(name.clone())
+        ) -> Result<Arc<RwLock<Value>> , RuntimeError> {
+        if let Some(value) = self.values.get(token.lexeme.as_str()) {
+            return Ok(Arc::clone(value))
         }
 
-        match self.enclosing.clone() {
+        match &self.enclosing {
             Some(env) => env.lock().unwrap().get(token),
             None => {
                 let message = format!("'{}' cannot be found in current scope.", token.lexeme);
@@ -47,13 +48,13 @@ impl Environment {
     }
 
     pub fn get_at(&self, distance: usize, token: Rc<Token>
-        ) -> Result<Arc<Mutex<Value>> , RuntimeError> {
+        ) -> Result<Arc<RwLock<Value>> , RuntimeError> {
         let value = match self.ancestor(distance) {
             Some(env) => { 
                 env.lock()
                    .unwrap()
                    .values
-                   .get_mut(&token.lexeme)
+                   .get_mut(token.lexeme.as_str())
                    .cloned()
             },
             None => { 
@@ -71,16 +72,16 @@ impl Environment {
     }
 
     //check innermost env for var else recursively check outer env 
-    pub fn assign(&mut self, token: Rc<Token>, value: Arc<Mutex<Value>>
+    pub fn assign(&mut self, token: Rc<Token>, value: Arc<RwLock<Value>>
         ) -> Result<(), RuntimeError>{
-        let entry = self.values.entry(token.lexeme.clone());
+        let entry = self.values.entry(token.lexeme.to_string());
 
         if let Entry::Occupied(mut entry) = entry {
             *entry.get_mut() = value;
             return Ok(())
         }
 
-        match self.enclosing.clone() {
+        match &self.enclosing {
             Some(env) => env.lock().unwrap().assign(token, value),
             None => {
                 let message = format!("Cannot assign a value to '{}' before it is declared", token.lexeme);
@@ -89,14 +90,14 @@ impl Environment {
         }
     }
 
-    pub fn assign_at(&mut self, distance: usize, token: Rc<Token>, value: Arc<Mutex<Value>>
+    pub fn assign_at(&mut self, distance: usize, token: Rc<Token>, value: Arc<RwLock<Value>>
         ) -> Result<(), RuntimeError> {
         match self.ancestor(distance) {
             Some(env) => { 
                 env.lock()
                    .unwrap()
                    .values
-                   .insert(token.lexeme.clone(), value);
+                   .insert(token.lexeme.to_string(), value);
             },
             None => { 
                 let message = format!("Cannot assign value to '{}' in unreachable scope.", token.lexeme);
@@ -120,3 +121,22 @@ impl Environment {
 }
 
 
+impl fmt::Debug for Environment {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Environment:")?;
+        for (k, v) in &self.values {
+            writeln!(f, "{}: {}", k, v.read().unwrap())?;
+        }
+        loop {
+            let enclosing = match &self.enclosing {
+                Some(env) => env,
+                None => break,
+            };
+
+            for (k, v) in &enclosing.lock().unwrap().values {
+                writeln!(f, "{}: {}", k, v.read().unwrap())?;
+            }
+        }
+        Ok(())
+    }
+}

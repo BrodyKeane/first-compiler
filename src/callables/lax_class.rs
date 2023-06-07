@@ -1,9 +1,9 @@
 use std::{
     fmt, collections::HashMap,
-    sync::{Arc, Mutex},
+    sync::{Arc, Mutex, RwLock},
+    rc::Rc,
 };
 
-use lazy_static::__Deref;
 
 use crate::{
     interpreter::Interpreter,
@@ -20,31 +20,31 @@ use super::{
 
 #[derive(Clone)]
 pub struct LaxClass {
-    pub name: String,
+    pub name: Rc<String>,
     pub methods: HashMap<String, LaxFn>,
 }
 
 impl LaxClass {
-    pub fn find_method(&self, name: String) -> Option<Arc<Mutex<Value>>> {
+    pub fn find_method(&self, name: &str) -> Option<Arc<RwLock<Value>>> {
         self.methods
-            .get(&name)
+            .get(name)
             .cloned()
             .map(|method| 
-                Arc::new(Mutex::new(Value::Callable(Callable::LaxFn(method))))
+                Arc::new(RwLock::new(Value::Callable(Callable::LaxFn(method))))
             )
     }
 }
 
 impl Call for LaxClass {
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<Mutex<Value>>>
-        ) -> Result<Arc<Mutex<Value>>, RuntimeError> {
+    fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<RwLock<Value>>>
+        ) -> Result<Arc<RwLock<Value>>, RuntimeError> {
         let object = Arc::new(Mutex::new(LaxObject::new(self.clone())));
-        let value = Arc::new(Mutex::new(Value::LaxObject(object)));
+        let value = Arc::new(RwLock::new(Value::LaxObject(object)));
 
-        if let Some(binding) = self.find_method("init".to_string()) {
-            let method = binding.lock().unwrap();
+        if let Some(binding) = self.find_method("init") {
+            let method = binding.write().unwrap();
 
-            if let Value::Callable(Callable::LaxFn(initializer)) = method.deref() {
+            if let Value::Callable(Callable::LaxFn(initializer)) = &*method {
                 initializer.bind(Arc::clone(&value)).call(interpreter, args)?;
             }
         }
@@ -52,11 +52,11 @@ impl Call for LaxClass {
     }
 
     fn arity(&self) -> usize {
-        let value = match self.find_method("init".to_string()) {
+        let value = match self.find_method("init") {
             Some(initializer) => initializer,
             None => return 0,
         };
-        let arity = match value.lock().unwrap().deref() {
+        let arity = match &*value.read().unwrap() {
             Value::Callable(func) => func.arity(),
             _ => 0,
         };
@@ -67,5 +67,15 @@ impl Call for LaxClass {
 impl fmt::Display for LaxClass {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
        write!(f, "{}", self.name) 
+    }
+}
+
+impl fmt::Debug for LaxClass {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        writeln!(f, "{}:", self.name)?;
+        for (k, _) in &self.methods {
+            writeln!(f, "{}", k)?;
+        }
+        Ok(())
     }
 }

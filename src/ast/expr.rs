@@ -5,7 +5,7 @@ use std::{
     sync::{
         atomic::{AtomicU64, Ordering},
         Arc,
-        Mutex,
+        RwLock,
     },
 };
 
@@ -32,7 +32,7 @@ pub trait ExprVisitor {
 //    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub enum Expr {
     Binary(Binary),
     Grouping(Grouping),
@@ -84,7 +84,7 @@ impl Expr {
         })
     }
 
-    pub fn new_literal(value: Arc<Mutex<Value>>) -> Self {
+    pub fn new_literal(value: Arc<RwLock<Value>>) -> Self {
         let id = ID_GENERATOR.generate_id();
         Expr::Literal(Literal { id, value })
     }
@@ -181,7 +181,7 @@ impl IdGenerator {
 }
 
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Binary {
     pub id: u64,
     pub left: Box<Expr>,
@@ -189,39 +189,39 @@ pub struct Binary {
     pub right: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Grouping {
     pub id: u64,
     pub expr: Box<Expr>, 
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Literal {
     pub id: u64,
-    pub value: Arc<Mutex<Value>>,
+    pub value: Arc<RwLock<Value>>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Unary {
     pub id: u64,
     pub operator: Rc<Token>,
     pub right: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Var {
     pub id: u64,
     pub token: Rc<Token>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Assign {
     pub id: u64,
     pub token: Rc<Token>,
     pub value: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Logical {
     pub id: u64,
     pub left: Box<Expr>,
@@ -229,7 +229,7 @@ pub struct Logical {
     pub right: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Call {
     pub id: u64,
     pub callee: Box<Expr>,
@@ -237,14 +237,14 @@ pub struct Call {
     pub args: Vec<Expr>
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Get {
     pub id: u64,
     pub object: Box<Expr>,
     pub token: Rc<Token>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct Set {
     pub id: u64, 
     pub object:  Box<Expr>,
@@ -252,7 +252,7 @@ pub struct Set {
     pub value: Box<Expr>,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct This {
     pub id: u64,
     pub keyword: Rc<Token>,

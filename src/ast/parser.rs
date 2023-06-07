@@ -1,5 +1,5 @@
 use std::{
-    sync::{Arc, Mutex},
+    sync::{Arc, RwLock},
     rc::Rc,
 };
 
@@ -74,7 +74,7 @@ impl<'a> Parser<'a> {
 
         let body = self.stmt()?;
         let mut else_body = None;
-        if self.match_token(TokenType::Else) {
+        if self.try_consume_token(TokenType::Else) {
             else_body = Some(self.stmt()?);
         }
         Ok(Stmt::new_if(condition, body, else_body))
@@ -104,7 +104,7 @@ impl<'a> Parser<'a> {
         };
 
         let condition = match self.check(TokenType::Semicolon) {
-            true => Expr::new_literal(Arc::new(Mutex::new(Value::Bool(true)))),
+            true => Expr::new_literal(Arc::new(RwLock::new(Value::Bool(true)))),
             false => self.expression()?,
         };
         self.consume(TokenType::Semicolon, 
@@ -136,7 +136,7 @@ impl<'a> Parser<'a> {
 
     fn return_stmt(&mut self) -> Result<Stmt, ParseError> {
         let keyword = self.previous();
-        let value = match self.match_token(TokenType::Semicolon) {
+        let value = match self.try_consume_token(TokenType::Semicolon) {
             true => None,
             false => Some(self.expression()?),
         };
@@ -164,7 +164,7 @@ impl<'a> Parser<'a> {
             .consume(TokenType::Identifier, "Expect variable name.")?;
 
         let mut initializer = None;
-        if self.match_token(TokenType::Equal) {
+        if self.try_consume_token(TokenType::Equal) {
             initializer = Some(self.expression()?);
         }
 
@@ -184,7 +184,7 @@ impl<'a> Parser<'a> {
                 return Err(ParseError::new(self.peek(), "Can't have more than 255 parameters."))
             }
             params.push(self.consume(TokenType::Identifier, "Expect parameter name.")?);
-            if !self.match_token(TokenType::Comma) {
+            if !self.try_consume_token(TokenType::Comma) {
                 break
             }
         }
@@ -197,6 +197,13 @@ impl<'a> Parser<'a> {
 
     fn class_declaration(&mut self) -> Result<Stmt, ParseError> {
         let token = self.consume(TokenType::Identifier, "Expect class name.")?;
+        let superclass = match self.try_consume_token(TokenType::Less){
+            true => { 
+                self.consume(TokenType::Identifier, "Expect superclass name.")?;
+                Some(Expr::new_var(self.previous()))
+            },
+            false => None
+        };
         self.consume(TokenType::OpenBrace, "Expect '{' before class body.")?;
 
         let mut methods = vec!();
@@ -204,10 +211,10 @@ impl<'a> Parser<'a> {
             methods.push(self.func_declaration(FuncType::Method)?);
         }
         self.consume(TokenType::CloseBrace, "Expect '}' after class body.")?;
-        let class = Stmt::new_class(token, methods);
+        let class = Stmt::new_class(token, methods, superclass);
         Ok(class)
     }
-
+ 
     fn expression(&mut self) -> Result<Expr, ParseError> {
         self.assignment()
     }
@@ -215,7 +222,7 @@ impl<'a> Parser<'a> {
     fn assignment(&mut self) -> Result<Expr, ParseError> {
         let expr = self.or()?;
 
-        if !self.match_token(TokenType::Equal) {
+        if !self.try_consume_token(TokenType::Equal) {
             return Ok(expr)
         }
 
@@ -234,7 +241,7 @@ impl<'a> Parser<'a> {
     fn or(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.and()?;
 
-        while self.match_token(TokenType::Or) {
+        while self.try_consume_token(TokenType::Or) {
             let operator = self.previous();
             let right = self.and()?;
             expr = Expr::new_logical(expr, operator, right);
@@ -245,7 +252,7 @@ impl<'a> Parser<'a> {
     fn and(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.equality()?;
 
-        while self.match_token(TokenType::And) {
+        while self.try_consume_token(TokenType::And) {
             let operator = self.previous();
             let right = self.equality()?;
             expr = Expr::new_logical(expr, operator, right);
@@ -256,7 +263,7 @@ impl<'a> Parser<'a> {
     fn equality(&mut self) -> Result<Expr, ParseError> {
         let mut expr: Expr = self.comparison()?;
         
-        while self.match_tokens(vec!(
+        while self.try_consume_tokens(vec!(
             TokenType::BangEqual,
             TokenType::EqualEqual
         )) {
@@ -270,7 +277,7 @@ impl<'a> Parser<'a> {
 
     fn comparison(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.term()?;
-        while self.match_tokens(vec!(
+        while self.try_consume_tokens(vec!(
             TokenType::Greater,
             TokenType::GreaterEqual,
             TokenType::Less,
@@ -285,7 +292,7 @@ impl<'a> Parser<'a> {
 
     fn term(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.factor()?;
-        while self.match_tokens(vec!(
+        while self.try_consume_tokens(vec!(
             TokenType::Minus,
             TokenType::Plus,
         )) {
@@ -298,7 +305,7 @@ impl<'a> Parser<'a> {
 
     fn factor(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.unary()?;
-        while self.match_tokens(vec!(
+        while self.try_consume_tokens(vec!(
             TokenType::Star,
             TokenType::Slash,
         )) {
@@ -310,7 +317,7 @@ impl<'a> Parser<'a> {
     }
 
     fn unary(&mut self) -> Result<Expr, ParseError> {
-        if self.match_tokens(vec!(
+        if self.try_consume_tokens(vec!(
             TokenType::Bang,
             TokenType::Minus,
         )) {
@@ -324,10 +331,10 @@ impl<'a> Parser<'a> {
     fn call(&mut self) -> Result<Expr, ParseError> {
         let mut expr = self.primary()?;
         loop {
-            if self.match_token(TokenType::OpenParen) {
+            if self.try_consume_token(TokenType::OpenParen) {
                 expr = self.finish_call(expr)?;
             } 
-            else if self.match_token(TokenType::Dot) {
+            else if self.try_consume_token(TokenType::Dot) {
                 let token = self.consume(TokenType::Identifier,
                     "Expect property name after '.'")?;
                 expr = Expr::new_get(expr, token);
@@ -340,13 +347,13 @@ impl<'a> Parser<'a> {
     fn primary(&mut self) -> Result<Expr, ParseError> {
         let expr = match self.advance().token_type {
             TokenType::False => 
-                Expr::new_literal(Arc::new(Mutex::new(Value::Bool(false)))),
+                Expr::new_literal(Arc::new(RwLock::new(Value::Bool(false)))),
                 
             TokenType::True => 
-                Expr::new_literal(Arc::new(Mutex::new(Value::Bool(true)))),
+                Expr::new_literal(Arc::new(RwLock::new(Value::Bool(true)))),
 
             TokenType::Nil => 
-                Expr::new_literal(Arc::new(Mutex::new(Value::None))),
+                Expr::new_literal(Arc::new(RwLock::new(Value::None))),
 
             TokenType::Number | TokenType::String =>
                 Expr::new_literal(self.previous().literal.clone()),
@@ -376,7 +383,7 @@ impl<'a> Parser<'a> {
                                "Can't have more than 255 arguments.")
                 )
             }
-            if !self.match_token(TokenType::Comma) {
+            if !self.try_consume_token(TokenType::Comma) {
                 break
             }
         }
@@ -403,16 +410,16 @@ impl<'a> Parser<'a> {
         }
     }
 
-    fn match_tokens(&mut self, types: Vec<TokenType>) -> bool {
+    fn try_consume_tokens(&mut self, types: Vec<TokenType>) -> bool {
         for token_type in types {
-            if self.match_token(token_type) {
+            if self.try_consume_token(token_type) {
                 return true
             }
         }
         false
     }
 
-    fn match_token(&mut self, token_type: TokenType) -> bool {
+    fn try_consume_token(&mut self, token_type: TokenType) -> bool {
         if self.check(token_type) {
             self.advance();
             return true
@@ -435,11 +442,11 @@ impl<'a> Parser<'a> {
     }
     
     fn peek(&self) -> Rc<Token> {
-        self.tokens[self.curr].clone()
+        Rc::clone(&self.tokens[self.curr])
     }
 
     fn previous(&self) -> Rc<Token> {
-        self.tokens[self.curr - 1].clone()
+        Rc::clone(&self.tokens[self.curr - 1])
     }
 
     //jumps to start of next statement
