@@ -22,16 +22,23 @@ use super::{
 pub struct LaxClass {
     pub name: Rc<String>,
     pub methods: HashMap<String, LaxFn>,
+    pub superclass: Option<Box<LaxClass>>,
 }
 
 impl LaxClass {
     pub fn find_method(&self, name: &str) -> Option<Arc<RwLock<Value>>> {
-        self.methods
+        let method = self.methods
             .get(name)
             .cloned()
             .map(|method| 
                 Arc::new(RwLock::new(Value::Callable(Callable::LaxFn(method))))
-            )
+            );
+        if method.is_some() {return method}
+
+        if let Some(superclass) = &self.superclass {
+            return superclass.find_method(name)
+        }
+        method
     }
 }
 

@@ -189,9 +189,9 @@ impl StmtVisitor for Resolver<'_> {
         self.define(Rc::clone(&stmt.token));
 
         if let Some(expr) = &stmt.superclass {
-            if let Expr::Var(class) = expr {
-                if stmt.token.lexeme == class.token.lexeme {
-                    let error = RuntimeError::new(Rc::clone(&class.token), 
+            if let Expr::Var(superclass) = expr {
+                if stmt.token.lexeme == superclass.token.lexeme {
+                    let error = RuntimeError::new(Rc::clone(&superclass.token), 
                         "A class can't inherit from itself.");
                     self.status.report_runtime_error(error);
                 }

@@ -4,7 +4,6 @@ use std::{
     fmt,
 };
 
-
 use crate::callables::{
     lax_object::LaxObject,
     Callable,
@@ -33,6 +32,16 @@ pub enum TokenType{
     Nil, Print, Super, This,
 
     Eof,
+}
+
+#[derive(Debug)]
+pub enum Value {
+    String(String),
+    Num(f64),
+    Bool(bool),
+    Callable(Callable),
+    LaxObject(Arc<Mutex<LaxObject>>),
+    None
 }
 
 pub struct Token {
@@ -66,16 +75,6 @@ impl fmt::Debug for Token {
     }
 }
 
-#[derive(Debug)]
-pub enum Value {
-    String(String),
-    Num(f64),
-    Bool(bool),
-    Callable(Callable),
-    LaxObject(Arc<Mutex<LaxObject>>),
-
-    None
-}
 
 impl PartialEq for Value {
     fn eq(&self, other: &Self) -> bool {

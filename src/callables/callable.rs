@@ -11,13 +11,15 @@ use crate::{
     error::RuntimeError,
     ast::stmt::Func,
     token::Value,
-    callables::{
-        native_functions::NativeFn,
-        lax_functions::LaxFn,
-        lax_class::LaxClass,
-    }
+    
 };
- 
+
+use super::{
+    native_functions::{NativeFn, NativeFnType},
+    lax_functions::LaxFn,
+    lax_class::LaxClass,
+};
+
 pub trait Call {
     fn call(&self, interpreter: &mut Interpreter, args: Vec<Arc<RwLock<Value>>>
         ) -> Result<Arc<RwLock<Value>>, RuntimeError>;
@@ -41,8 +43,7 @@ pub enum Callable {
 }
 
 impl Callable {
-    pub fn new_native_fn(name: String, func: Box<dyn Fn(&Interpreter, Vec<Arc<RwLock<Value>>>
-        ) -> Value>, arity: usize) -> Self {
+    pub fn new_native_fn(name: String, func: NativeFnType, arity: usize) -> Self {
         Callable::NativeFn(NativeFn { name, func, arity })
     }
 
@@ -51,8 +52,10 @@ impl Callable {
         Callable::LaxFn(LaxFn::new(declaration, closure, is_init))
     }
 
-    pub fn new_lax_class(name: Rc<String>, methods: HashMap<String, LaxFn>) -> Self {
-        Callable::LaxClass(LaxClass { name, methods })
+    pub fn new_lax_class(name: Rc<String>, methods: HashMap<String, LaxFn>,
+        superclass: Option<LaxClass>) -> Self {
+        let superclass = superclass.map(Box::new);
+        Callable::LaxClass(LaxClass { name, methods, superclass })
     }
 }
 

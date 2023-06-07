@@ -12,8 +12,10 @@ use crate::{
     token::Value,
 };
 
+pub type NativeFnType = Box<dyn Fn(&Interpreter, Vec<Arc<RwLock<Value>>>) -> Value>;
+
 pub struct NativeFn {
-    pub func: Box<dyn Fn(&Interpreter, Vec<Arc<RwLock<Value>>>) -> Value>,
+    pub func: NativeFnType,
     pub arity: usize,
     pub name: String,
 }

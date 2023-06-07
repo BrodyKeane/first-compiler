@@ -339,15 +339,24 @@ impl StmtVisitor for Interpreter {
             None => None
         };
         Ok(value)
-    }
+    }  
 
     fn visit_class_stmt(&mut self, stmt: &stmt::Class) -> Self::Output {
-        self.environment
-            .lock()
-            .unwrap()
-            .define(stmt.token.lexeme.to_string(), Arc::new(RwLock::new(Value::None)));
-        let name = Rc::clone(&stmt.token.lexeme);
+        let mut superclass = None;
+        if let Some(expr) = &stmt.superclass {
+            let value = self.evaluate(expr)?;
+            superclass = match &*value.read().unwrap() {
+                Value::Callable(Callable::LaxClass(class)) => Some(class.clone()),
+                _ => return Err(
+                    RuntimeError::new(Rc::clone(&stmt.token), "Superclass must be a class.")
+                ),
+            };
+        }
 
+        self.environment.lock().unwrap()
+            .define(stmt.token.lexeme.to_string(), Arc::new(RwLock::new(Value::None)));
+
+        let name = Rc::clone(&stmt.token.lexeme);
         let mut methods: HashMap<String, LaxFn> = HashMap::new();
         for wrapped_method in &stmt.methods {
             let method = match wrapped_method {
@@ -363,7 +372,7 @@ impl StmtVisitor for Interpreter {
             methods.insert(name.to_string(), function);
         }
 
-        let class = Callable::new_lax_class(name, methods);
+        let class = Callable::new_lax_class(name, methods, superclass);
         let value = Arc::new(RwLock::new(Value::Callable(class)));
         self.environment.lock().unwrap().assign(stmt.token.clone(), value)?;
         Ok(None)
