@@ -51,11 +51,8 @@ impl Environment {
         ) -> Result<Arc<RwLock<Value>> , RuntimeError> {
         let value = match self.ancestor(distance) {
             Some(env) => { 
-                env.lock()
-                   .unwrap()
-                   .values
-                   .get_mut(token.lexeme.as_str())
-                   .cloned()
+                env.lock().unwrap().values
+                   .get_mut(token.lexeme.as_str()).cloned()
             },
             None => { 
                 let message = format!("The scope where '{}' is declared cannot be accessed", token.lexeme);

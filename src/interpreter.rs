@@ -263,6 +263,46 @@ impl ExprVisitor for Interpreter {
     fn visit_this_expr(&mut self, expr: &expr::This) -> Self::Output {
         self.lookup_variable(Rc::clone(&expr.keyword), expr.id)
     }
+
+    fn visit_super_expr(&mut self, expr: &expr::Super) -> Self::Output {
+        let distance = match self.locals.get(&expr.id) {
+            Some(num) => num.to_owned(),
+            None => return Err(RuntimeError::new(Rc::clone(&expr.keyword), 
+                "super expression cannot be resolved.")),
+        };
+
+        let superclass = self.environment.lock().unwrap()
+            .get_at(distance, Rc::clone(&expr.keyword))?;
+
+        let sudo_token = Token::new(
+            TokenType::This,
+            Rc::new("this".to_string()),
+            Arc::new(RwLock::new(Value::None)),
+            expr.keyword.line
+        );
+
+        let object = self.environment.lock().unwrap()
+            .get_at(distance - 1, Rc::new(sudo_token))?;
+
+        let method = match &*superclass.read().unwrap() {
+            Value::Callable(Callable::LaxClass(class)) => 
+                class.find_method(expr.method.lexeme.as_str()),
+
+            _ => {
+                let message = format!("Undefined property '{}'.", Rc::clone(&expr.method.lexeme));
+                return Err(RuntimeError::new(Rc::clone(&expr.method), message.as_str()))
+            },
+        };
+
+        if let Some(method_value) = method {
+            if let Value::Callable(Callable::LaxFn(method_callable)) = &*method_value.write().unwrap() {
+                method_callable.bind(object);
+                return Ok(Arc::clone(&method_value))
+            }
+        }
+        Err(RuntimeError::new(Rc::clone(&expr.method),
+            "Method not found for 'super'."))
+    }
 }
 
 impl StmtVisitor for Interpreter {
@@ -287,9 +327,7 @@ impl StmtVisitor for Interpreter {
             Some(expr) => self.evaluate(expr)?,
             None => Arc::new(RwLock::new(Value::None)),
         };
-        self.environment
-            .lock()
-            .unwrap()
+        self.environment.lock().unwrap()
             .define(stmt.token.lexeme.to_string(), value);
         Ok(None)
     }
@@ -346,7 +384,7 @@ impl StmtVisitor for Interpreter {
         if let Some(expr) = &stmt.superclass {
             let value = self.evaluate(expr)?;
             superclass = match &*value.read().unwrap() {
-                Value::Callable(Callable::LaxClass(class)) => Some(class.clone()),
+                Value::Callable(Callable::LaxClass(_)) => Some(Arc::clone(&value)),
                 _ => return Err(
                     RuntimeError::new(Rc::clone(&stmt.token), "Superclass must be a class.")
                 ),
@@ -355,6 +393,14 @@ impl StmtVisitor for Interpreter {
 
         self.environment.lock().unwrap()
             .define(stmt.token.lexeme.to_string(), Arc::new(RwLock::new(Value::None)));
+
+        if let Some(superclass) = &superclass {
+            self.environment = 
+                Environment::new_wrapped(Some(Arc::clone(&self.environment)));
+
+            self.environment.lock().unwrap()
+                .define("super".to_string(), Arc::clone(superclass));
+        }
 
         let name = Rc::clone(&stmt.token.lexeme);
         let mut methods: HashMap<String, LaxFn> = HashMap::new();
@@ -372,8 +418,16 @@ impl StmtVisitor for Interpreter {
             methods.insert(name.to_string(), function);
         }
 
-        let class = Callable::new_lax_class(name, methods, superclass);
+        let class = Callable::new_lax_class(name, methods, superclass.clone());
         let value = Arc::new(RwLock::new(Value::Callable(class)));
+
+        if superclass.is_some() {
+            let enclosing = self.environment.lock().unwrap().enclosing.clone();
+            if let Some(enclosing) = enclosing {
+                self.environment = Arc::clone(&enclosing);
+            }
+        }
+
         self.environment.lock().unwrap().assign(stmt.token.clone(), value)?;
         Ok(None)
     }

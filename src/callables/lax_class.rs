@@ -22,7 +22,7 @@ use super::{
 pub struct LaxClass {
     pub name: Rc<String>,
     pub methods: HashMap<String, LaxFn>,
-    pub superclass: Option<Box<LaxClass>>,
+    pub superclass: Option<Arc<RwLock<Value>>>,
 }
 
 impl LaxClass {
@@ -35,8 +35,10 @@ impl LaxClass {
             );
         if method.is_some() {return method}
 
-        if let Some(superclass) = &self.superclass {
-            return superclass.find_method(name)
+        if let Some(value) = &self.superclass {
+            if let Value::Callable(Callable::LaxClass(superclass)) = &*value.read().unwrap() {
+                return superclass.find_method(name)
+            }
         }
         method
     }

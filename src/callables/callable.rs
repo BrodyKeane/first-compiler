@@ -53,8 +53,7 @@ impl Callable {
     }
 
     pub fn new_lax_class(name: Rc<String>, methods: HashMap<String, LaxFn>,
-        superclass: Option<LaxClass>) -> Self {
-        let superclass = superclass.map(Box::new);
+        superclass: Option<Arc<RwLock<Value>>>) -> Self {
         Callable::LaxClass(LaxClass { name, methods, superclass })
     }
 }

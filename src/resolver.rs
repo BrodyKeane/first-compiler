@@ -15,6 +15,7 @@ use crate::{
 
 enum ClassType {
     Class,
+    SubClass,
     None,
 }
 
@@ -189,6 +190,7 @@ impl StmtVisitor for Resolver<'_> {
         self.define(Rc::clone(&stmt.token));
 
         if let Some(expr) = &stmt.superclass {
+            self.class_type = ClassType::SubClass;
             if let Expr::Var(superclass) = expr {
                 if stmt.token.lexeme == superclass.token.lexeme {
                     let error = RuntimeError::new(Rc::clone(&superclass.token), 
@@ -197,6 +199,11 @@ impl StmtVisitor for Resolver<'_> {
                 }
             self.resolve_expr(expr);
             }
+        }
+
+        if stmt.superclass.is_some() {
+            self.begin_scope();
+            self.scopes.last_mut().unwrap().insert("super".to_string(), true);
         }
         
         self.begin_scope();
@@ -216,9 +223,11 @@ impl StmtVisitor for Resolver<'_> {
                 true => FuncType::Initializer,
                 false => FuncType::Method,
             };
-            self.resolve_func(&method, func_type);
+            self.resolve_func(method, func_type);
         }
+
         self.end_scope();
+        if stmt.superclass.is_some() {self.end_scope()}
         self.class_type = enclosing_class;
     }
 }
@@ -285,6 +294,25 @@ impl ExprVisitor for Resolver<'_> {
                 self.status.report_runtime_error(error);
             },
             _ => self.resolve_local(expr.id, Rc::clone(&expr.keyword)),
+        }
+    }
+
+    fn visit_super_expr(&mut self, expr: &expr::Super) -> Self::Output {
+        match self.class_type {
+            ClassType::None => {
+                let error = RuntimeError::new(Rc::clone(&expr.keyword), 
+                    "Can't use 'super' outside of a class.");
+                self.status.report_runtime_error(error);
+            }
+
+            ClassType::Class => {
+                let error = RuntimeError::new(Rc::clone(&expr.keyword), 
+                    "Can't use 'super' in a class with no superclass.");
+                self.status.report_runtime_error(error);
+            }
+
+            ClassType::SubClass => 
+                self.resolve_local(expr.id, Rc::clone(&expr.keyword)),
         }
     }
 }

@@ -29,7 +29,7 @@ pub trait ExprVisitor {
     fn visit_get_expr(&mut self, expr: &Get) -> Self::Output;
     fn visit_set_expr(&mut self, expr: &Set) -> Self::Output;
     fn visit_this_expr(&mut self, expr: &This) -> Self::Output;
-//    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
+    fn visit_super_expr(&mut self, expr: &Super) -> Self::Output;
 }
 
 #[derive(Clone, Debug)]
@@ -45,6 +45,7 @@ pub enum Expr {
     Get(Get),
     Set(Set),
     This(This),
+    Super(Super),
 }
 
 impl AcceptExprVisitor for Expr {
@@ -61,6 +62,7 @@ impl AcceptExprVisitor for Expr {
             Expr::Get(expr) => visitor.visit_get_expr(expr),
             Expr::Set(expr) => visitor.visit_set_expr(expr),
             Expr::This(expr) => visitor.visit_this_expr(expr),
+            Expr::Super(expr) => visitor.visit_super_expr(expr),
         }
     }
 }
@@ -157,6 +159,11 @@ impl Expr {
     pub fn new_this(keyword: Rc<Token>) -> Self {
         let id = ID_GENERATOR.generate_id();
         Expr::This(This { id, keyword } )
+    }
+
+    pub fn new_super(keyword: Rc<Token>, method: Rc<Token>) -> Self {
+        let id = ID_GENERATOR.generate_id();
+        Expr::Super(Super {id, keyword, method})
     }
 }
 
@@ -256,4 +263,11 @@ pub struct Set {
 pub struct This {
     pub id: u64,
     pub keyword: Rc<Token>,
+}
+
+#[derive(Clone, Debug)]
+pub struct Super {
+    pub id: u64,
+    pub keyword: Rc<Token>,
+    pub method: Rc<Token>,
 }

@@ -367,6 +367,8 @@ impl<'a> Parser<'a> {
             TokenType::This => 
                 Expr::new_this(self.previous()),
 
+            TokenType::Super => self.new_super()?,
+
             _ => return Err(
                 ParseError::new(self.previous(), "Expected expression.")
             ),
@@ -398,6 +400,14 @@ impl<'a> Parser<'a> {
         self.consume(TokenType::CloseParen, 
                      "Expect ')' after expression.")?;
         Ok(expr)
+    }
+
+    fn new_super(&mut self) -> Result<Expr, ParseError> {
+        let keyword = self.previous();
+        self.consume(TokenType::Dot, "Expect '.' after 'super'.")?;
+        let method = self.consume(TokenType::Identifier, 
+            "Expect superclass method name after '.'")?;
+        Ok(Expr::new_super(keyword, method))
     }
 
     fn consume(&mut self, token_type: TokenType, message: &str
